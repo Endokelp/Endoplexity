@@ -164,7 +164,13 @@ function startTask(
   let sawTool = false;
   let sawFake = false;
   let redo = false;
+  let ended = false;
   const onEvent = (event: Record<string, unknown>) => {
+    // A CLI that fails to spawn emits `error` and then `close`, so every adapter
+    // reported a failed start twice: two red notes, and the end of the run
+    // handled twice. One guard here rather than one per adapter.
+    if (ended) return;
+    if (event.type === "done" || event.type === "failed") ended = true;
     const id = sessionOf(event);
     if (id) session = { id, model: chosen };
     if (usedTools(event)) sawTool = true;
