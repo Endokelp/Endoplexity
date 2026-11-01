@@ -956,7 +956,10 @@ promptEl.addEventListener("keydown", (event) => {
 });
 
 const stored = await chrome.storage.local.get(["model", "mode", "sessions"]);
-if (stored.model) modelEl.value = stored.model;
+// Only a model the dropdown still offers. Assigning one it does not (`sonnet`,
+// from before the ids were spelled out) leaves the <select> on no option at all,
+// so every Run would send "" and be refused as an unknown model.
+if ([...modelEl.options].some((option) => option.value === stored.model)) modelEl.value = stored.model;
 if (stored.mode) modeEl.value = stored.mode;
 // The Profile pane was removed with P11a's read_file: the agent reads the real
 // resume through the allow-list, so a second copy pasted into the panel was

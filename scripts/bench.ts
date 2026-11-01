@@ -13,8 +13,8 @@
  * What it is not: it bypasses the panel's Run button, so it measures the
  * CLI + bridge + browser, not the panel's own event handling.
  *
- *   npm run bench -- sonnet claude-hn "the task"
- *   npm run bench -- cursor-grok-4.5-medium cursor-hn "the same task"
+ *   npm run bench -- claude-sonnet-5-5 claude-hn "the task"
+ *   npm run bench -- grok-4.7-medium cursor-hn "the same task"
  *
  * Writes <label>.jsonl beside the repo's .endo-bridge.log so a run can be read
  * back without paying for it twice, then prints the summary.
@@ -29,12 +29,11 @@ import { writeFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const REPO = new URL("../", import.meta.url);
-const { runClaude } = await import(new URL("bridge/src/claude.ts", REPO).href);
-const { runCursor } = await import(new URL("bridge/src/cursor.ts", REPO).href);
+const { MODELS } = await import(new URL("bridge/src/models.ts", REPO).href);
 
 const [model, label, task] = process.argv.slice(2);
-if (!model || !label || !task) {
-  console.error('usage: npm run bench -- <model> <label> "<task>"');
+if (!model || !label || !task || !Object.hasOwn(MODELS, model)) {
+  console.error(`usage: npm run bench -- <model> <label> "<task>"\nmodels: ${Object.keys(MODELS).join(", ")}`);
   process.exit(2);
 }
 
@@ -67,10 +66,8 @@ const prompt = `The page you are on is "about:blank" — about:blank\n\n${task}`
 
 const events: Record<string, unknown>[] = [];
 const started = Date.now();
-const runner = /^(cursor|composer)/.test(model) ? runCursor : runClaude;
-
 await new Promise<void>((done) => {
-  runner(prompt, model, (event: Record<string, unknown>) => {
+  MODELS[model](prompt, model, (event: Record<string, unknown>) => {
     events.push({ ...event, at: Date.now() - started });
     if (event.type === "done" || event.type === "failed") done();
   });

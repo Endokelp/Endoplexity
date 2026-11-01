@@ -7,25 +7,10 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { authorize, authorizeMcp, ALLOWED_ORIGIN } from "./auth.ts";
 import { handleMcp, setMode } from "./mcp.ts";
 import { setPanel, dropPanel, settle, settleGate, sendPanel } from "./relay.ts";
-import { runClaude, writeMcpConfig } from "./claude.ts";
-import { runCursor, writeCursorConfig } from "./cursor.ts";
+import { writeMcpConfig } from "./claude.ts";
+import { writeCursorConfig } from "./cursor.ts";
+import { MODELS } from "./models.ts";
 import { attach, detach, list as listFiles } from "./files.ts";
-
-/**
- * The panel picks a model, not a CLI — one dropdown, and which binary answers is
- * an implementation detail. Doubles as the allowlist: this string reaches a spawn
- * argv, so an unknown one is refused rather than being passed through.
- */
-const MODELS: Record<string, typeof runClaude> = {
-  sonnet: runClaude,
-  opus: runClaude,
-  // `grok-4.5` in the design doc is not a real id — cursor exposes reasoning
-  // tiers, `cursor-grok-4.5-{low,medium,high}`, each with a `-fast` twin.
-  // Medium for the same reason claude defaults to sonnet: this is
-  // snapshot-read-click, not reasoning.
-  "cursor-grok-4.5-medium": runCursor,
-  "composer-2.5": runCursor,
-};
 
 const HOST = "127.0.0.1"; // never 0.0.0.0 — this socket can drive a logged-in browser
 // Overridable only so a second instance can be smoke-tested without evicting the
