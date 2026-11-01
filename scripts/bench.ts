@@ -15,6 +15,7 @@
  *
  *   npm run bench -- claude-sonnet-5-5 claude-hn "the task"
  *   npm run bench -- grok-4.7-medium cursor-hn "the same task"
+ *   npm run bench -- gpt-6.1-sol codex-hn "the same task"
  *
  * Writes <label>.jsonl beside the repo's .endo-bridge.log so a run can be read
  * back without paying for it twice, then prints the summary.
@@ -25,11 +26,13 @@
  * longer in the tree. The one-glance tell is in the refs: `@f0e1, @f0e2, @f0e3…`
  * contiguous from 1 is the pre-P11e walk counter, and that build is old.
  */
-import { writeFileSync, readFileSync } from "node:fs";
+import { writeFileSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPO = new URL("../", import.meta.url);
 const { MODELS } = await import(new URL("bridge/src/models.ts", REPO).href);
+const { runCodex, CODEX_HOME } = await import(new URL("bridge/src/codex.ts", REPO).href);
 
 const [model, label, task] = process.argv.slice(2);
 if (!model || !label || !task || !Object.hasOwn(MODELS, model)) {
@@ -110,7 +113,28 @@ const answer = String(result.result ?? "");
 
 // A turn is a model response that did work; cursor batches parallel calls into
 // one, so counting raw calls instead would flatter it.
-const toolTurns = new Set(calls.map((c) => c.turn)).size;
+let toolTurns = new Set(calls.map((c) => c.turn)).size;
+
+// Codex calls tools by writing JS into one `exec` cell, which may call several,
+// and its JSONL shows the calls but not the cells. The session's rollout file
+// shows both: one `exec` per tool-calling turn, one usage record per request.
+if (MODELS[model] === runCodex) {
+  const thread = String(events.find((e) => e.type === "system")?.session_id ?? "");
+  // Optional evidence: with no rollout, the call-derived count stands rather
+  // than being overwritten by a zero that reads like a measurement.
+  let rows: Record<string, any>[] = [];
+  try {
+    const sessions = join(CODEX_HOME, "sessions");
+    const file = thread && readdirSync(sessions, { recursive: true }).find((name) => String(name).includes(thread));
+    if (file) rows = readFileSync(join(sessions, String(file)), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  } catch (err) {
+    console.warn(`no codex rollout read (${(err as Error).message}) — tool-call turns are an upper bound`);
+  }
+  if (rows.length) {
+    toolTurns = rows.filter((r) => r.payload?.type === "custom_tool_call" && r.payload?.name === "exec").length;
+    Object.assign(result, { num_turns: rows.filter((r) => r.type === "token_usage_record").length });
+  }
+}
 // The tax this harness was written to catch: turns that bought only a schema.
 const discovery = calls.filter((c) => /ToolSearch|getMcpTools/.test(c.name)).length;
 

@@ -8,6 +8,7 @@
     "start": "node bridge/src/index.ts",
     "setup": "node scripts/setup.mjs",
     "cursor-login": "node bridge/src/cursor-login.ts",
+    "codex-login": "node bridge/src/codex-login.ts",
     "bench": "node scripts/bench.ts",
     "test": "node --test \"bridge/test/**/*.test.ts\""
   },

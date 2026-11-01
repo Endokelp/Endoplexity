@@ -7,8 +7,8 @@
 **Agentic browser control, driven by the AI subscription you already pay for.**
 
 A Chrome side panel that reads and acts on the page you're actually looking at:
-click, type, fill forms, move between tabs, all through your existing `claude`
-or `cursor-agent` CLI instead of a metered API key.
+click, type, fill forms, move between tabs, all through your existing `claude`,
+`cursor-agent` or `codex` CLI instead of a metered API key.
 
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-1f6f4a)](LICENSE)
 [![Node](https://img.shields.io/badge/node-24%2B-1f6f4a)](package.json)
@@ -42,7 +42,7 @@ has to log back in to everything.
 ## Why this exists
 
 Most open-source "browser agent" projects need an API key and bill you per
-click. But if you already pay for Claude or Cursor, a tool-calling agent loop
+click. But if you already pay for Claude, Cursor or ChatGPT, a tool-calling agent loop
 is sitting on your machine right now, fully paid for, doing nothing.
 
 The brain didn't need building. What was missing was **hands** (a browser it
@@ -59,7 +59,8 @@ Chrome. Neither one holds the other's credentials.
 ┌──────────────────────┐   WebSocket    ┌──────────────┐    MCP/HTTP   ┌──────────────────┐
 │  Chrome side panel   │  origin-pinned │ local bridge │  token-gated  │  claude -p       │
 │  (MV3)               │◄──────────────►│  127.0.0.1   │◄─────────────►│  cursor-agent -p │
-│  owns chrome.debugger│                │  :8787       │               │  (the agent loop)│
+│  owns chrome.debugger│                │  :8787       │               │  codex exec      │
+│                      │                │              │               │  (the agent loop)│
 └──────────────────────┘                └──────────────┘               └──────────────────┘
 ```
 
@@ -95,8 +96,8 @@ configure. Just Node, Chrome, and a CLI you probably already have logged in.
   and that only works on 24+. Check with `node -v`.
 - **Chrome 114 or newer.** 135+ gets themed dropdowns; anything older just
   falls back to the native picker, nothing breaks.
-- **The `claude` CLI, the `cursor-agent` CLI, or both**, already logged in to
-  a real subscription. A **Claude Pro** plan is enough (you don't need Max);
+- **The `claude`, `cursor-agent` or `codex` CLI (any of them)**, already logged
+  in to a real subscription. A **Claude Pro** plan is enough (you don't need Max);
   pick Sonnet in the model dropdown once you're running, since reading a page
   and clicking things doesn't need a frontier reasoning model.
 
@@ -130,17 +131,20 @@ root is the first place to look.
 
 You'll see the Endoplexity icon appear in your toolbar.
 
-### 5. (Optional) Log in to Cursor too
+### 5. (Optional) Log in to Cursor or Codex too
 
-Only needed if you want to run tasks through Cursor's models as well as
-Claude's:
+Only needed if you want to run tasks through Cursor's or OpenAI's models as
+well as Claude's:
 
 ```bash
 npm run cursor-login
+npm run codex-login
 ```
 
-This is a one-time login into a bridge-owned Cursor profile, kept separate
-from your normal `cursor-agent` login so the two never collide.
+Each is a one-time login into a bridge-owned profile (`~/.endo-cursor`,
+`~/.endo-codex`), kept separate from your normal CLI login so the two never
+collide, and so your own instructions and MCP servers never load into an agent
+that is driving your browser.
 
 ### 6. Files
 
@@ -199,8 +203,10 @@ boundaries here are worth stating plainly, including where they stop.
 - **The agent gets browser tools and nothing else.** Claude runs with an
   explicit allowlist plus `--strict-mcp-config --setting-sources ""`; Cursor
   runs in an isolated profile with `Shell`, `Write`, `Read`, and `WebFetch`
-  all denied. Both were verified by actually trying to run a shell command,
-  not by reading the documentation and hoping.
+  all denied. Codex runs in its own home with its shell, browsers, web search
+  and sub-agents switched off, and a run that reports anything but a browser
+  tool call is killed. Each was verified by asking the agent to reach past its
+  tools, not by reading the documentation and hoping.
 - **Irreversible actions stop for a human.** Submitting, deleting, and
   purchasing all hit an approval gate that lives in the bridge. Silence
   denies. A disconnected panel denies.

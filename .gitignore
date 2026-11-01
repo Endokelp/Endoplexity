@@ -17,6 +17,8 @@ Endoplexity.vbs
 *.log
 # Raw event streams from `npm run bench` — a measurement's evidence, not source.
 *.jsonl
+# ...except a captured stream a test is written against, which is source.
+!bridge/test/fixtures/*.jsonl
 dist/
 
 # The raw screen recording — 300MB+, and the edited asset is what ships.

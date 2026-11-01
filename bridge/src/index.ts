@@ -9,6 +9,7 @@ import { handleMcp, setMode } from "./mcp.ts";
 import { setPanel, dropPanel, settle, settleGate, sendPanel } from "./relay.ts";
 import { writeMcpConfig } from "./claude.ts";
 import { writeCursorConfig } from "./cursor.ts";
+import { writeCodexConfig } from "./codex.ts";
 import { MODELS } from "./models.ts";
 import { attach, detach, list as listFiles } from "./files.ts";
 
@@ -37,6 +38,7 @@ const FIXTURES: Record<string, URL> = {
 const token = loadToken();
 const configPath = writeMcpConfig(PORT, token);
 const cursorDir = writeCursorConfig(PORT, token);
+const codexDir = writeCodexConfig(PORT, token);
 const wss = new WebSocketServer({ noServer: true });
 
 const http = createServer(async (req, res) => {
@@ -330,4 +332,5 @@ http.listen(PORT, HOST, () => {
   console.log(`paired extension: ${ALLOWED_ORIGIN}`);
   console.log(`mcp config for claude: ${configPath}`);
   console.log(`isolated cursor profile: ${cursorDir}`);
+  console.log(`isolated codex home: ${codexDir}`);
 });

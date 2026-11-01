@@ -1,5 +1,6 @@
 import { runClaude } from "./claude.ts";
 import { runCursor } from "./cursor.ts";
+import { runCodex } from "./codex.ts";
 
 /**
  * The panel picks a model, not a CLI — one dropdown, and which binary answers is
@@ -28,4 +29,5 @@ export const MODELS: Record<string, typeof runClaude> = {
   "gemini-3.8-flash-high": runCursor,
   "gpt-5.6-sol-high": runCursor,
   "composer-2.5": runCursor,
+  "gpt-6.1-sol": runCodex,
 };
