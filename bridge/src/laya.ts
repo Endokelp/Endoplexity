@@ -135,6 +135,15 @@ async function boot(): Promise<Endpoint> {
   if (open !== 401) throw new Error(`laya-serve answered a request without its key (${open})`);
   if (await reachableOffLoopback(port)) throw new Error("laya-serve is reachable off loopback");
 
+  // The first inference pays CUDA's warm-up, about 2 s on the first live run
+  // against 0.1 to 0.2 s after, so the first decision of every session would
+  // abstain in Act. Paid here instead, before anything is asked for real.
+  await fetch(`${base}/v1/systemone`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...auth },
+    body: JSON.stringify({ model: MODEL, state: "warm-up", questions: { q: { type: "choice", instructions: "Warm up?", criteria: { a: "Yes", b: "No" } } } }),
+  }).catch(() => {});
+
   note = "";
   ready = { base, key, model: MODEL, budget: BUDGET_MS };
   console.log(`laya: ready on ${base} (${MODEL})`);
