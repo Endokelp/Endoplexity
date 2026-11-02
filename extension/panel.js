@@ -5,6 +5,7 @@ import * as ui from "./transcript.js";
 import { fresh, pack, startNew, titleOf } from "./sessions.js";
 import { block as mentionBlock, label as mentionLabel } from "./mentions.js";
 import { initReflexes } from "./reflexes.js";
+import { initProposals, initSkills } from "./skills.js";
 import { block as filesBlock, humanSize, toBase64 } from "./attachments.js";
 
 // No token anywhere in here on purpose. The bridge identifies this panel by the
@@ -29,6 +30,7 @@ globalThis.endo = {
     promptEl.value = answer;
     runTask(true);
   },
+  runSkill: (id, vars) => runSkill(id, vars),
   stop: () => stopBtn.click(),
   // A bug report is now one call and a copy, instead of selecting a <pre>.
   log: () => logEl.textContent,
@@ -265,6 +267,13 @@ cdp.onSettle((row) => {
   if (socket?.readyState === WebSocket.OPEN) send({ type: "reflex-log", row: { reflex: "settle", ...row } });
 });
 
+// Skills and proposals are bridge state too: redrawn from the last message on
+// every connect, never journalled into the chat.
+const skillsSheet = initSkills(document.getElementById("skills"), send, runSkill, () => {
+  document.getElementById("skills-open").open = false;
+});
+const proposals = initProposals(document.getElementById("proposals"), send);
+
 function showGate({ id, action }) {
   pendingGateId = id;
   gateAction.textContent = action;
@@ -383,6 +392,7 @@ function show(event) {
     );
   }
   if (event.type === "retry") return ui.note(`↻ ${event.reason}`);
+  if (event.type === "handoff") return ui.note(`↪ ${event.reason}`);
   if (event.type === "result") {
     const text = String(event.result ?? "").trim();
     // Usually a verbatim repeat of what was already said, but not always: cursor
@@ -481,6 +491,10 @@ function connect() {
     if (msg.type === "file-failed") return void ui.note(`could not attach — ${msg.error}`, true);
     if (msg.type === "reflex-failed") return void ui.note(msg.error, true);
     if (msg.type === "gate") return void showGate(msg);
+    if (msg.type === "skills") return void skillsSheet.apply(msg);
+    if (msg.type === "proposals") return void proposals.apply(msg);
+    // What an approved proposal wrote, so Save is not a card that just vanishes.
+    if (msg.type === "note") return void ui.note(msg.text);
     if (msg.type === "reflexes") {
       cdp.setSettle(msg.settings.enabled ? msg.settings.settle.state : "off");
       return void reflexes.apply(msg);
@@ -537,6 +551,37 @@ function setBusy(on) {
   if (!on) ui.step(null);
 }
 
+// The task names the group any tabs this run opens will land in, so three
+// pricing pages read as one piece of work rather than three strays. A reply
+// deliberately keeps the previous name: it is the same piece of work.
+async function rebind(name) {
+  cdp.nameRun(name);
+  try {
+    await cdp.detach();
+    await cdp.attach(undefined, { open: false });
+  } catch (err) {
+    // Not fatal: runTool attaches lazily on the first call, so the task can
+    // still run — it just loses the page context.
+    ui.note(`could not attach to the active tab — ${err.message}`);
+  }
+}
+
+/** A saved skill is a fresh run on the tab you are looking at, like Run. */
+async function runSkill(id, vars = {}) {
+  if (runBtn.disabled) return ui.note("a task is already running — stop it first");
+  if (viewing !== 0) showSession(0);
+  const name = id.split("/").pop();
+  setBusy(true);
+  said = [];
+  await rebind(name);
+  const page = await cdp.currentPage().catch(() => null);
+  if (!send({ type: "run-skill", id, vars, model: modelEl.value, mode: modeEl.value })) {
+    return setBusy(false);
+  }
+  ui.user(`Run skill: ${name}`);
+  setWhere(page, "run");
+}
+
 /** Run is a fresh conversation; Reply continues the last one. */
 async function runTask(resume = false) {
   // The console path shares this, so the guard lives here rather than on the
@@ -586,20 +631,7 @@ async function runTask(resume = false) {
   // about:blank and drop you on it — a black page under a "started debugging
   // this browser" banner — for the whole of the model's first turn. The first
   // tool call opens the tab it needs, and navigates it immediately.
-  if (!resume) {
-    // The task names the group any tabs this run opens will land in, so three
-    // pricing pages read as one piece of work rather than three strays. A reply
-    // deliberately keeps the previous name: it is the same piece of work.
-    cdp.nameRun(prompt);
-    try {
-      await cdp.detach();
-      await cdp.attach(undefined, { open: false });
-    } catch (err) {
-      // Not fatal: runTool attaches lazily on the first call, so the task can
-      // still run — it just loses the page context below.
-      ui.note(`could not attach to the active tab — ${err.message}`);
-    }
-  }
+  if (!resume) await rebind(prompt);
 
   // "Apply to THIS job" is unanswerable unless the task says which page this is.
   // Without it the agent asked for a URL instead of acting — it has no way to
@@ -621,7 +653,7 @@ async function runTask(resume = false) {
     .join("\n\n");
   // The model rides along, but the bridge overrules it on a reply: a claude
   // transcript cannot be handed to cursor-agent.
-  if (!send({ type: "task", prompt: sent, model: modelEl.value, mode: modeEl.value, resume })) {
+  if (!send({ type: "task", task: prompt, prompt: sent, model: modelEl.value, mode: modeEl.value, resume })) {
     return setBusy(false);
   }
   ui.user(prompt);

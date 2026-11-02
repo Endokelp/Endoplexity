@@ -50,6 +50,12 @@
       let keys = 0;
       addEventListener("keydown", () => keys++);
 
+      // The same page with one label changed, for a saved skill to heal on:
+      // set localStorage.relabel on this origin and "Continue" reads "Next".
+      try {
+        if (localStorage.getItem("relabel")) document.getElementById("continue").textContent = "Next";
+      } catch {}
+
       document.getElementById("continue").addEventListener("click", () => {
         document.getElementById("step1").style.display = "none";
         document.getElementById("step2").style.display = "block";

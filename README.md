@@ -65,12 +65,13 @@ Chrome. Neither one holds the other's credentials.
 ```
 
 The panel owns the CDP connection itself rather than handing it to the
-service worker, which sidesteps MV3's idle teardown. The bridge exposes 14
+service worker, which sidesteps MV3's idle teardown. The bridge exposes 18
 browser tools over MCP, and it's where the safety policy actually lives.
 Never in a prompt, so nothing the model says can widen its own permissions.
 
 **Tools:** `snapshot` `navigate` `click` `type` `key` `upload` `read_file`
-`select` `scroll` `hover` `back` `forward` `tabs` `use_tab`
+`select` `scroll` `hover` `back` `forward` `tabs` `use_tab` `batch` `find`
+`run_skill` `note_site`
 
 Two decisions do most of the work here:
 
@@ -78,7 +79,23 @@ Two decisions do most of the work here:
   It's what the model actually needs, at a fraction of the bytes.
 - **Actions return the page they produced**, so acting and re-reading happen
   in one turn instead of two. After the first read, only the lines that
-  changed get sent again.
+  changed get sent again. `batch` runs a whole form's worth of steps in one
+  call, and `find` locates an element on the page already read.
+
+**Skills: learn once, replay free.** When a run finishes, the panel offers to
+save it as a skill, a JSON file under `~/.endo/skills/<host>/` that you own.
+Each step names its element by what it reads and what sits around it, not by
+a reference that dies with the page, and the values the model typed become
+`{{variables}}`. Run it from the panel's Skills sheet and it replays with no
+model at all, through the same approval gate. When a step can't be placed
+(a label changed), the rest goes to the model you picked, and once that run
+succeeds the panel shows you the change to the skill to approve. A password
+field's value is never written into the file.
+
+**Site notes.** The agent can propose a short note about a site
+(`note_site`): a trap it hit, a step that has to come first. You see it as a
+card and nothing is saved unless you approve it. Saved notes come back to
+every engine on arrival at that site, framed as data, not instructions.
 
 `read_file` reads an attached document as text (PDF, DOCX, XLSX, PPTX, CSV,
 JSON, Markdown, or any text file), so the agent can answer questions *about* an
@@ -229,6 +246,12 @@ boundaries here are worth stating plainly, including where they stop.
   seeing its contents, but `read_file` puts those contents directly in the
   model's context. That allow-list is the whole boundary, so only put in it
   what you actually mean to share.
+- **A person writes every skill and note.** The model that proposes a note
+  has just read untrusted pages, and a page that talked it into "on arrival
+  at your bank, open Transfers" would otherwise reach every later run. So
+  proposals are cards you approve, a healed skill is a diff you approve, and
+  a skill file from someone else replays only through the gate, like any
+  model action.
 
 Found a hole? See [SECURITY.md](SECURITY.md) and please report it privately.
 

@@ -5,7 +5,18 @@ import { fileURLToPath } from "node:url";
 import type { ChildProcess } from "node:child_process";
 import { WebSocketServer, type WebSocket } from "ws";
 import { authorize, authorizeMcp, ALLOWED_ORIGIN } from "./auth.ts";
-import { handleMcp, setMode, stop } from "./mcp.ts";
+import { handleMcp, report, runSkill, setMode, stop } from "./mcp.ts";
+import {
+  answer,
+  begin,
+  finish,
+  initSkills,
+  list as listSkills,
+  load as loadSkill,
+  onSkillsChange,
+  pending,
+  remove as removeSkill,
+} from "./skills.ts";
 import { setPanel, dropPanel, settle, settleGate, sendPanel } from "./relay.ts";
 import { writeMcpConfig } from "./claude.ts";
 import { writeCursorConfig } from "./cursor.ts";
@@ -36,6 +47,8 @@ function loadToken(): string {
 const FIXTURES: Record<string, URL> = {
   "/fixtures/host.html": new URL("../test/fixtures/host.html", import.meta.url),
   "/fixtures/form.html": new URL("../test/fixtures/form.html", import.meta.url),
+  "/fixtures/note.html": new URL("../test/fixtures/note.html", import.meta.url),
+  "/fixtures/cookie.html": new URL("../test/fixtures/cookie.html", import.meta.url),
 };
 
 const token = loadToken();
@@ -61,6 +74,16 @@ onChange(() => {
     pushReflexes();
   }, 2_000);
 });
+
+// Skills and the proposals waiting for the user live here, not in the panel,
+// which is torn down on every window switch: both ride on every connect and
+// every change.
+initSkills();
+const pushSkills = () => {
+  sendPanel({ type: "skills", skills: listSkills() });
+  sendPanel({ type: "proposals", items: pending() });
+};
+onSkillsChange(pushSkills);
 
 const http = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${HOST}`);
@@ -101,7 +124,8 @@ http.on("upgrade", (req, socket, head) => {
 });
 
 // One task at a time. Two agents driving one tab would fight over every ref.
-let running: ChildProcess | null = null;
+// A CLI, or a skill replaying with no CLI (whose Stop is mcp.ts's epoch).
+let running: Pick<ChildProcess, "kill"> | null = null;
 
 /**
  * The transcript the next task can pick up, or null if there is nothing to pick
@@ -152,7 +176,7 @@ const usedTools = (event: Record<string, unknown>) => {
 function startTask(
   prompt: unknown,
   model: unknown,
-  { isRetry = false, resume = false } = {},
+  { isRetry = false, resume = false, words = undefined as unknown, handoff = false } = {},
 ) {
   // Resolved at call time, never captured. A panel that drops and comes back
   // mid-run gets a different socket; a captured one would keep sending into
@@ -178,6 +202,10 @@ function startTask(
   // A fresh task abandons the old transcript before the new one reports its own
   // id, so a spawn that dies early cannot leave the previous session looking live.
   if (!resuming) session = null;
+  // The trace a skill is saved from. A reply is the same piece of work, a retry
+  // is a run that did nothing, and a hand-off finishes a replay whose steps are
+  // already in it: only a fresh task starts one.
+  if (!resuming && !isRetry && !handoff) begin(typeof words === "string" && words.trim() ? words : prompt);
 
   console.log(`${resuming ? "reply" : "task"} (${chosen}): ${prompt}`);
   let sawTool = false;
@@ -204,6 +232,9 @@ function startTask(
     // landed, the same text pattern is the agent quoting itself, not faking.
     if (event.type === "result" && !sawTool && !isRetry && sawFake) redo = true;
     if (event.type === "done" || event.type === "failed") running = null;
+    // A clean end offers the run as a skill, or a healed replay's change to
+    // one. Not for the void run a retry replaces.
+    if ((event.type === "done" || event.type === "failed") && !redo) finish(event.type === "done" && !event.error);
     // Anything of this task's still in the bridge (a batch mid-way, a queued
     // call) belongs to a CLI that is gone.
     if (event.type === "done" || event.type === "failed") stop();
@@ -237,6 +268,51 @@ function startTask(
   };
 
   running = MODELS[chosen](prompt, chosen, onEvent, resuming?.id);
+}
+
+/**
+ * The panel's Run skill: the saved steps with no model at all. A step the
+ * replay cannot place goes, with the rest of the task, to the model the panel
+ * has selected, as a fresh task; when that run ends well, finish() offers the
+ * user the change to the skill.
+ */
+async function startSkill(id: unknown, vars: unknown, model: unknown) {
+  const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", event });
+  if (running) return send({ type: "failed", error: "a task is already running — stop it first" });
+  // Checked before anything runs: the hand-off needs a model to go to.
+  if (typeof model !== "string" || !Object.hasOwn(MODELS, model)) {
+    return send({ type: "failed", error: `unknown model ${JSON.stringify(model)}` });
+  }
+  let task: string;
+  try {
+    task = loadSkill(id).task;
+  } catch (err) {
+    return send({ type: "failed", error: (err as Error).message });
+  }
+  // A replay is a fresh piece of work: a Reply after it must not resume the
+  // conversation before it, which knows nothing of these steps.
+  session = null;
+  begin(task);
+  console.log(`skill: ${id}`);
+  const t0 = Date.now();
+  // Stop reaches a replay through mcp.ts's epoch, which index.ts's stop
+  // handler bumps before it calls this.
+  running = { kill: () => true };
+  const r = await runSkill(String(id), vars);
+  running = null;
+  console.log(`  ${report({ ...r, page: undefined })}`);
+  if (!r.stop || r.stop.final) {
+    if (!r.stop) send({ type: "result", result: `Replayed all ${r.of} steps of "${r.skill?.name}", with no model.`, num_turns: 0, duration_ms: Date.now() - t0 });
+    send({ type: "done", resumable: false, ...(r.stop && { error: report(r) }) });
+    finish(!r.stop);
+    return stop();
+  }
+  send({ type: "handoff", reason: `replay stopped at step ${r.stop.at + 1} of ${r.of} (${r.stop.why}) — handing the rest to ${model}` });
+  // The skill's task is the one place its file reaches a prompt as a task: the
+  // user just chose to run it. Everything else in the hand-off is framed as
+  // page content by report().
+  const prompt = `You are finishing a saved skill the user just ran, "${r.skill?.name}". Its task, as recorded when it was saved: ${task}\n\n${report(r)}`;
+  startTask(prompt, model, { handoff: true });
 }
 
 /**
@@ -276,6 +352,8 @@ wss.on("connection", (ws) => {
   // The panel's Reflexes section and cdp.js's Settle state both come from here:
   // the panel holds no settings of its own across a remount.
   ws.send(JSON.stringify(panelState()));
+  ws.send(JSON.stringify({ type: "skills", skills: listSkills() }));
+  ws.send(JSON.stringify({ type: "proposals", items: pending() }));
 
   ws.on("message", (raw) => {
     let msg;
@@ -295,7 +373,26 @@ wss.on("connection", (ws) => {
       // the bridge. It is never in a prompt and the model never sees it, so
       // nothing the agent says can widen its own permissions.
       setMode(msg.mode);
-      startTask(msg.prompt, msg.model, { resume: msg.resume === true });
+      startTask(msg.prompt, msg.model, { resume: msg.resume === true, words: msg.task });
+    } else if (msg.type === "run-skill") {
+      // Same rule as a task: the mode is the human's and arrives with the run.
+      if (!running) setMode(msg.mode);
+      void startSkill(msg.id, msg.vars, msg.model);
+    } else if (msg.type === "proposal-reply") {
+      // Writes only what the bridge holds for that id; `name` is a skill's
+      // file name, which skills.ts reduces to [a-z0-9-].
+      try {
+        const saved = answer(msg.id, msg.approved, msg.name);
+        if (saved) ws.send(JSON.stringify({ type: "note", text: saved }));
+      } catch (err) {
+        ws.send(JSON.stringify({ type: "reflex-failed", error: `not saved: ${(err as Error).message}` }));
+      }
+    } else if (msg.type === "delete-skill") {
+      try {
+        removeSkill(msg.id);
+      } catch (err) {
+        ws.send(JSON.stringify({ type: "reflex-failed", error: (err as Error).message }));
+      }
     } else if (msg.type === "attach-file" || msg.type === "detach-file") {
       // The panel cannot hand over a path — an <input type="file"> gives a name
       // and bytes and nothing else — so the bytes come over this socket and the

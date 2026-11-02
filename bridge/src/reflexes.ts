@@ -36,7 +36,7 @@ type Where = { title: string; url: string };
 // Field values never go into a state, logged or sent: a password, an email,
 // anything the agent typed. ax.js writes them as ` = "..."` after the name and
 // does not escape quotes inside, so cut at the marker rather than match a pair.
-const redact = (line: string) => line.trim().replace(/^@\S+\s+/, "").split(' = "')[0];
+export const redact = (line: string) => line.trim().replace(/^@\S+\s+/, "").split(' = "')[0];
 
 // The query string and fragment are where session tokens live.
 function bare(url: string): string {
@@ -53,9 +53,11 @@ function bare(url: string): string {
  * a chrome.tabs read: it moves no ref and no delta baseline. Empty on failure;
  * a reflex with less state is still a reflex.
  */
-async function where(): Promise<Where> {
+export async function where(): Promise<Where> {
   try {
-    const m = /^\* id \d+ — "(.*)" (\S*)$/m.exec(await callPanel("tabs", {}));
+    // `peek`: the panel draws no row for it. The agent did not look at the
+    // tabs; the bridge did, and a row said otherwise (seen live, P17).
+    const m = /^\* id \d+ — "(.*)" (\S*)$/m.exec(await callPanel("tabs", { peek: true }));
     if (m) return { title: m[1], url: bare(m[2]) };
   } catch {}
   return { title: "", url: "" };
@@ -105,7 +107,7 @@ type Hit = { ref: string; line: string; p: number };
  * for the state and 192 for every option, and the lexical ranking is already
  * the coarse step. "None of these" is an option, as it is in find().
  */
-export function pick(query: string, hits: Hit[]): Promise<{ line: string; p: number } | null> | undefined {
+export function pick(query: string, hits: Hit[]): Promise<Hit | null> | undefined {
   const state = stateOf("pick");
   if (state === "off" || !hits.length) return undefined;
   const criteria: Record<string, string> = {};
@@ -136,7 +138,7 @@ export function pick(query: string, hits: Hit[]): Promise<{ line: string; p: num
   return run.then((d) => {
     if (!d || d.choice === "none") return null;
     const hit = hits[Number(d.choice.slice(1)) - 1];
-    return hit ? { line: hit.line, p: d.p } : null;
+    return hit ? { ...hit, p: d.p } : null;
   });
 }
 

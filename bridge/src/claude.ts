@@ -72,6 +72,8 @@ export const PRELOAD = [
   "use_tab",
   "batch",
   "find",
+  "run_skill",
+  "note_site",
 ];
 
 /**

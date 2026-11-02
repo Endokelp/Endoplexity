@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cookie wall fixture</title>
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; margin: 16px; }
+      #wall { position: fixed; inset: 0; background: rgb(0 0 0 / 0.6); display: grid; place-items: center; }
+      #wall div { background: #fff; padding: 20px; max-width: 360px; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <!-- A consent wall the way real ones work: the page behind is inert, so
+         neither a person nor the accessibility tree can reach it until the
+         banner is answered. The v1 failure this guards: "Accept all" matched
+         the gate's word list and stopped every run for a human. -->
+    <main id="page" inert>
+      <h1>Today's number</h1>
+      <p>The number of the day is 4417.</p>
+    </main>
+    <div id="wall" role="dialog" aria-label="Cookie consent">
+      <div>
+        <p>We use cookies to improve your experience.</p>
+        <button type="button" data-answer="all">Accept all</button>
+        <button type="button" data-answer="necessary">Necessary only</button>
+      </div>
+    </div>
+    <script>
+      for (const b of document.querySelectorAll("#wall button")) {
+        b.addEventListener("click", () => {
+          document.getElementById("wall").remove();
+          document.getElementById("page").inert = false;
+        });
+      }
+    </script>
+  </body>
+</html>

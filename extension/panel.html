@@ -911,7 +911,7 @@
       footer details[open] summary { color: var(--text); }
       /* The disclosure opens as a sheet above the composer, so the summary row
          never jumps and the transcript is never pushed off screen. */
-      #log, #history, #reflexes {
+      #log, #history, #reflexes, #skills {
         position: fixed;
         left: 12px;
         right: 12px;
@@ -937,7 +937,7 @@
       }
 
       /* The Reflexes sheet: the History sheet's frame, in the UI font. */
-      #reflexes {
+      #reflexes, #skills {
         max-height: 60vh;
         overflow: auto;
         font-family: var(--sans);
@@ -978,6 +978,61 @@
       .rx-opts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
       .rx-btn { height: 23px; padding: 0 9px; font-size: var(--t-meta); border-color: var(--line); }
       .rx-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+      /* Skills sheet rows; the buttons reuse .rx-btn / .rx-opts. */
+      .sk-empty { font-size: var(--t-micro); color: var(--text-faint); }
+      .sk-item { padding: 6px 0; border-top: 1px solid var(--line-soft); }
+      .sk-item:first-child { border-top: 0; padding-top: 0; }
+      .sk-item b { color: var(--text); font-size: var(--t-ui); font-weight: 600; }
+      .sk-meta, .sk-task { font-size: var(--t-micro); color: var(--text-faint); }
+      .sk-task { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+      .sk-var { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: var(--t-micro); color: var(--text-soft); }
+      .sk-var span { flex: none; min-width: 64px; }
+      .sk-var input, .pc-name {
+        flex: 1;
+        min-width: 0;
+        height: 25px;
+        padding: 0 9px;
+        font: var(--t-meta) / 1 var(--sans);
+        color: var(--text);
+        background: var(--sink);
+        border: 1px solid var(--line-soft);
+        border-radius: 999px;
+      }
+      .sk-run { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+      /* Proposal cards: the gate's frame, calmer (no alert colour). */
+      #proposals { flex: none; display: flex; flex-direction: column; gap: 8px; }
+      #proposals:not(:empty) { margin: 0 12px 10px; }
+      .pc-card {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        background: var(--raise);
+        animation: rise var(--slow) var(--ease) both;
+      }
+      .pc-title { font-size: var(--t-ui); color: var(--text); }
+      .pc-lines {
+        margin: 0;
+        padding: 6px 8px;
+        max-height: 11.5em;
+        overflow: auto;
+        font: var(--t-micro) / 1.5 var(--mono);
+        color: var(--text-soft);
+        background: var(--sink);
+        border-radius: var(--r-md);
+        scrollbar-width: thin;
+      }
+      .pc-lines div { white-space: pre-wrap; overflow-wrap: anywhere; }
+      .pc-lines .pc-del { color: var(--danger); }
+      .pc-lines .pc-add { color: var(--accent); }
+      .pc-hint { font-size: var(--t-micro); color: var(--text-faint); }
+      .pc-name { flex: none; height: 27px; }
+      .pc-pair { display: flex; gap: 7px; }
+      .pc-pair button { flex: 1; }
 
       /* The session list. Sessions are stored newest first and index 0 is the
          live one, so the list needs no sorting and no "current" section. */
@@ -1134,6 +1189,8 @@
       <button id="to-current">Back to current</button>
     </div>
 
+    <div id="proposals" aria-live="polite"></div>
+
     <div id="gate">
       <div class="head">
         <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
@@ -1233,6 +1290,10 @@
       <details id="reflexes-open">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-live" /></svg>Reflexes</summary>
         <div id="reflexes"></div>
+      </details>
+      <details id="skills-open">
+        <summary><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Skills</summary>
+        <div id="skills"></div>
       </details>
     </footer>
 

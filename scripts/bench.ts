@@ -34,9 +34,11 @@ const REPO = new URL("../", import.meta.url);
 const { MODELS } = await import(new URL("bridge/src/models.ts", REPO).href);
 const { runCodex, CODEX_HOME } = await import(new URL("bridge/src/codex.ts", REPO).href);
 
-const [model, label, task] = process.argv.slice(2);
-if (!model || !label || !task || !Object.hasOwn(MODELS, model)) {
-  console.error(`usage: npm run bench -- <model> <label> "<task>"\nmodels: ${Object.keys(MODELS).join(", ")}`);
+const [model, label, task, varsJson] = process.argv.slice(2);
+// `replay` is the zero-model row: `npm run bench -- replay <label> <host/skill> ['{"var":"value"}']`
+// calls run_skill over /mcp itself, so no CLI starts and no token is spent.
+if (!model || !label || !task || (model !== "replay" && !Object.hasOwn(MODELS, model))) {
+  console.error(`usage: npm run bench -- <model> <label> "<task>"\n       npm run bench -- replay <label> <host/skill> ['{"var":"value"}']\nmodels: ${Object.keys(MODELS).join(", ")}`);
   process.exit(2);
 }
 
@@ -65,7 +67,22 @@ if (parked.startsWith("error:")) {
   process.exit(1);
 }
 console.log(`tabs before the run:\n${await tool("tabs")}`);
-const prompt = `The page you are on is "about:blank" — about:blank\n\n${task}`;
+
+if (model === "replay") {
+  const t0 = Date.now();
+  const text = await tool("run_skill", { name: task, ...(varsJson && { vars: JSON.parse(varsJson) }) });
+  const wall = Date.now() - t0;
+  const row = { type: "replay", skill: task, wall, turns: 0, tokens: 0, ok: text.startsWith("replayed all"), result: text };
+  writeFileSync(fileURLToPath(new URL(`${label}.jsonl`, REPO)), JSON.stringify(row));
+  console.log(`\n=== ${label} (replay ${task}) ===`);
+  console.log(`wall               ${(wall / 1000).toFixed(1)}s`);
+  console.log(`model turns        0`);
+  console.log(`tokens             0`);
+  console.log(`\n${text.split("\nthe page as it is now:")[0]}`);
+  process.exit(row.ok ? 0 : 1);
+}
+
+const prompt =`The page you are on is "about:blank" — about:blank\n\n${task}`;
 
 const events: Record<string, unknown>[] = [];
 const started = Date.now();
