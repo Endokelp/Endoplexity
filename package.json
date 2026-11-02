@@ -10,7 +10,9 @@
     "cursor-login": "node bridge/src/cursor-login.ts",
     "codex-login": "node bridge/src/codex-login.ts",
     "bench": "node scripts/bench.ts",
-    "test": "node --test \"bridge/test/**/*.test.ts\""
+    "test": "node --test \"bridge/test/**/*.test.ts\"",
+    "laya-setup": "node scripts/laya-setup.mjs",
+    "test:laya": "node --test bridge/test/laya.live.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
