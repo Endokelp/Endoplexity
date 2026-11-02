@@ -165,7 +165,21 @@ export async function attach(target, { open = true } = {}) {
     throw new Error("no tab to drive");
   }
 
-  await chrome.debugger.attach({ tabId: id }, "1.3");
+  try {
+    await chrome.debugger.attach({ tabId: id }, "1.3");
+  } catch (err) {
+    // An attachment belongs to the extension, not to this document: one made by
+    // a panel Chrome has since torn down (every window switch) outlives it and
+    // refuses this one, so a remount mid-task, or use_tab back to a tab driven
+    // before it, failed with "Another debugger is already attached" (seen live,
+    // P17). That one is ours to release. DevTools' is not, and detaching it
+    // fails, so the original error stands.
+    if (!/already attached/i.test(err.message)) throw err;
+    await chrome.debugger.detach({ tabId: id }).catch(() => {
+      throw err;
+    });
+    await chrome.debugger.attach({ tabId: id }, "1.3");
+  }
   tabId = id;
   sessions.set(MAIN, { tag: "f0", url: "" });
   invalidate("attached");

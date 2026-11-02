@@ -34,10 +34,18 @@ let newTabId = 2;
 /** Set per test: the AX tree getFullAXTree hands back. Empty unless a test cares. */
 let axNodes: () => unknown[] = () => [];
 
+/** Tabs another attachment holds: "ours" a torn-down panel's, "devtools" not ours to release. */
+const held = new Map<number, "ours" | "devtools">();
+
 (globalThis as unknown as { chrome: unknown }).chrome = {
   debugger: {
-    attach: async () => {},
-    detach: async () => {},
+    attach: async ({ tabId }: { tabId: number }) => {
+      if (held.has(tabId)) throw new Error(`Another debugger is already attached to the tab with id: ${tabId}.`);
+    },
+    detach: async ({ tabId }: { tabId: number }) => {
+      if (held.get(tabId) === "devtools") throw new Error(`Debugger is not attached to the tab with id: ${tabId}.`);
+      held.delete(tabId);
+    },
     sendCommand: async (target: { sessionId?: string }, method: string) => {
       const sessionId = target.sessionId ?? "";
       calls.push({ sessionId, method });
@@ -293,4 +301,17 @@ test("navigating away sends the new page whole, never as a patch", async () => {
   assert.match(await cdp.snapshot(), /@f0e12 \[link\] "Docs"/);
 
   await cdp.detach();
+});
+
+test("an attachment a torn-down panel left behind is released, and DevTools' is not", async () => {
+  await cdp.detach();
+  // Seen live (P17): the panel was closed and reopened mid-task, and use_tab
+  // back to a tab the old document had driven failed for the rest of the run.
+  held.set(7, "ours");
+  assert.equal(await cdp.attach(7), 7);
+  await cdp.detach();
+  held.set(8, "devtools");
+  await assert.rejects(cdp.attach(8), /Another debugger is already attached/);
+  assert.equal(cdp.state().tabId, null, "a refused attach leaves nothing half-attached");
+  held.clear();
 });
