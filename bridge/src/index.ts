@@ -12,6 +12,9 @@ import { writeCursorConfig } from "./cursor.ts";
 import { writeCodexConfig } from "./codex.ts";
 import { MODELS } from "./models.ts";
 import { attach, detach, list as listFiles } from "./files.ts";
+import { clearLog, initReflexes, mark, needsLaya, onChange, panelState, saveSettings, writeJevKey } from "./reflex.ts";
+import { settled } from "./reflexes.ts";
+import { startLaya, stopLaya } from "./laya.ts";
 
 const HOST = "127.0.0.1"; // never 0.0.0.0 — this socket can drive a logged-in browser
 // Overridable only so a second instance can be smoke-tested without evicting the
@@ -40,6 +43,24 @@ const configPath = writeMcpConfig(PORT, token);
 const cursorDir = writeCursorConfig(PORT, token);
 const codexDir = writeCodexConfig(PORT, token);
 const wss = new WebSocketServer({ noServer: true });
+
+// The reflex layer is inert until this: tests that import mcp.ts never start it.
+initReflexes();
+const pushReflexes = () => void sendPanel(panelState());
+// The sidecar runs only while a reflex is set to Laya: Off starts nothing.
+function syncLaya() {
+  if (!needsLaya()) return stopLaya();
+  void startLaya().then(pushReflexes);
+}
+syncLaya();
+// Every logged decision changes the counts; the panel hears at most every 2s.
+let pushTimer: NodeJS.Timeout | null = null;
+onChange(() => {
+  pushTimer ??= setTimeout(() => {
+    pushTimer = null;
+    pushReflexes();
+  }, 2_000);
+});
 
 const http = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${HOST}`);
@@ -252,6 +273,9 @@ wss.on("connection", (ws) => {
   ws.send(
     JSON.stringify({ type: "hello", running: running !== null, resumable: session !== null, files: listFiles() }),
   );
+  // The panel's Reflexes section and cdp.js's Settle state both come from here:
+  // the panel holds no settings of its own across a remount.
+  ws.send(JSON.stringify(panelState()));
 
   ws.on("message", (raw) => {
     let msg;
@@ -301,6 +325,23 @@ wss.on("connection", (ws) => {
         // so a refusal nobody sees is a paperclip that silently does nothing.
         ws.send(JSON.stringify({ type: "file-failed", error: (err as Error).message }));
       }
+    } else if (msg.type === "reflex-log") settled(msg.row);
+    else if (msg.type === "reflex-settings" || msg.type === "reflex-mark" || msg.type === "reflex-clear" || msg.type === "reflex-status") {
+      // Settings are sanitized in reflex.ts: an unknown value is the default,
+      // and Act that a backend has not earned arrives as Shadow.
+      if (msg.type === "reflex-settings") {
+        saveSettings(msg.settings);
+        syncLaya();
+      } else if (msg.type === "reflex-mark") mark(msg.id, msg.truth);
+      else if (msg.type === "reflex-clear") clearLog();
+      pushReflexes();
+    } else if (msg.type === "jev-key") {
+      try {
+        writeJevKey(msg.key);
+      } catch (err) {
+        ws.send(JSON.stringify({ type: "reflex-failed", error: `Jev key not saved: ${(err as Error).message}` }));
+      }
+      pushReflexes();
     } else if (msg.type === "stop") {
       // Killing the CLI stops its next call, not a batch already in the bridge.
       stop();

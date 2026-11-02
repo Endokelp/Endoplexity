@@ -7,6 +7,7 @@ import { check, reads, rememberApproval, resetApprovals, type Mode } from "./gat
 import { remember, labelFor, labelsOf, find, hasPage } from "./page.ts";
 import { keys, resolve } from "./files.ts";
 import { extract, page } from "./docs.ts";
+import { acted, arrived, drop, gate, pick } from "./reflexes.ts";
 
 /**
  * The browser tools, written once. Both CLIs speak MCP, so Phase 5 gets these
@@ -31,7 +32,8 @@ const DENIED = "blocked — the human denied this action. Do not retry it; stop 
 const READ_CAP = 8000;
 
 // find() answers with one line instead of a list at or above this. A ranking
-// cut, not odds: p is uncalibrated until Phase 16 fits it (see page.ts).
+// cut, not odds: p is find()'s uncalibrated softmax. With the Pick reflex on
+// Act, its calibrated decision replaces this cut (reflexes.ts pick()).
 const CONFIDENT = 0.8;
 
 // Shared by the two tools that ARRIVE somewhere. Reading a page is a different
@@ -103,7 +105,17 @@ async function readFor(need: "ref" | "page" | null, args: Record<string, unknown
  * batch asks exactly as the same call made on its own would.
  */
 async function gated(name: string, args: Record<string, unknown>): Promise<string | null> {
-  const needs = check(name, args, mode, await readFor(reads(name, args, mode), args));
+  const need = reads(name, args, mode);
+  const fresh = await readFor(need, args);
+  let needs = check(name, args, mode, fresh);
+  // The Gate reflex weighs the same fresh label the regex just did. It can add
+  // a prompt the regex missed and never removes one: it is told the regex's
+  // verdict, and a click already gated is only logged.
+  const label = need === "ref" ? fresh?.get(String(args.ref)) : undefined;
+  if (label) {
+    const extra = await gate(String(args.ref), label, needs !== null);
+    needs ??= extra;
+  }
   if (!needs) return null;
   if (!(await askPanel(needs))) return DENIED;
   // Watch mode asks about a whole class of action, so approving one has to
@@ -141,12 +153,17 @@ function serial(job: (task: number) => Promise<Result>): Promise<Result> {
 let epoch = 0;
 export function stop(): void {
   epoch++;
+  drop();
 }
 const STOPPED: Result = { content: [{ type: "text", text: "stopped — the human stopped this task" }], isError: true };
 
 export const relay = (name: string, args: Record<string, unknown>) => serial((task) => relayNow(name, args, task));
 
+// The tools that land on a page, where the Obstacle reflex looks first.
+const ARRIVALS = new Set(["navigate", "use_tab", "back", "forward"]);
+
 async function relayNow(name: string, args: Record<string, unknown>, task: number): Promise<Result> {
+  acted(args.ref);
   const denied = await gated(name, args);
   if (denied) return { content: [{ type: "text" as const, text: denied }], isError: true };
   // An approval can arrive after Stop: the prompt stays up until answered.
@@ -157,6 +174,8 @@ async function relayNow(name: string, args: Record<string, unknown>, task: numbe
     // the gate, so this costs a lookup rather than a round trip.
     const text = await callPanel(name, args, typeof args.ref === "string" ? labelFor(args.ref) : undefined);
     if (!NO_PAGE.has(name)) remember(text);
+    const swap = ARRIVALS.has(name) ? await arrived(text, () => task === epoch) : null;
+    if (swap) return { content: [{ type: "text" as const, text: swap.text }], ...(swap.isError ? { isError: true } : {}) };
     return { content: [{ type: "text" as const, text }] };
   } catch (err) {
     const { message, page } = err as Error & { page?: string };
@@ -217,6 +236,7 @@ async function batchNow(steps: Step[], task: number): Promise<Result> {
   let stopped = false;
   for (const [i, { do: name, ...args }] of steps.entries()) {
     const what = `${i + 1}. ${name} ${args.ref ?? args.name ?? args.direction ?? ""}`.trimEnd();
+    if (task === epoch) acted(args.ref);
     const denied = task === epoch ? await gated(name, args) : null;
     if (task !== epoch) {
       log.push(`${what}: not run — the human stopped this task`);
@@ -503,7 +523,7 @@ function build() {
         limit: z.number().int().min(1).max(10).optional().describe("Default 5"),
       },
     },
-    ({ query, limit }) => {
+    async ({ query, limit }) => {
       // Answered from the page the bridge already holds, never by asking the
       // panel to read again: a read moves cdp.js's delta baseline, and one the
       // model never saw would make its next action's delta leave changes out.
@@ -512,12 +532,17 @@ function build() {
         return { content: [{ type: "text" as const, text: "error: no page read yet — navigate or snapshot first" }], isError: true };
       }
       const hits = find(query, limit);
+      // Pick weighs the top 10 whatever the limit. undefined: not acting, so
+      // the uncalibrated cut decides as before; null: Act abstained, list them.
+      const picked = await pick(query, find(query, 10));
       const [top] = hits;
       const text = !top
         ? `nothing on the page matches "${query}" — snapshot to read it`
-        : top.p >= CONFIDENT
-          ? `best match ${top.line} (p=${top.p})`
-          : hits.map((h) => `${h.line} (p=${h.p})`).join("\n");
+        : picked
+          ? `best match ${picked.line} (p=${picked.p})`
+          : picked === undefined && top.p >= CONFIDENT
+            ? `best match ${top.line} (p=${top.p})`
+            : hits.map((h) => `${h.line} (p=${h.p})`).join("\n");
       return { content: [{ type: "text" as const, text }] };
     },
   );

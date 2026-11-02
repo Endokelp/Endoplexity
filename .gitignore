@@ -9,6 +9,7 @@ docs/launch.md
 # setup.mjs writes the launcher here when there is no Startup folder to put it in
 Endoplexity.vbs
 .endo-token
+.endo-jev-key
 .endo-mcp.json
 .endo-files.json
 # The panel's paperclip: the bridge's own map, and the copies it holds.

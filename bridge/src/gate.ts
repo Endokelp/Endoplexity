@@ -28,7 +28,9 @@ import { labelFor, controls } from "./page.ts";
 // control reads "I accept" (an EULA-style flow, no submit/confirm/etc next
 // to it) now goes ungated — the same class of false negative documented
 // above, just one word wider.
-const IRREVERSIBLE = /\b(submit|apply|pay|buy|purchase|order|checkout|confirm|delete|remove|send|book|sign up)\b/i;
+// Exported for the reflexes: Gate's lexical backend IS this regex, and a
+// control the bridge clicks on its own (a cookie banner) must never match it.
+export const IRREVERSIBLE = /\b(submit|apply|pay|buy|purchase|order|checkout|confirm|delete|remove|send|book|sign up)\b/i;
 
 export type Mode = "watch" | "normal" | "trust";
 

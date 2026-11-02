@@ -124,6 +124,13 @@ export function hasPage(): boolean {
   return lines.length > 0;
 }
 
+/** Up to n lines either side of a ref's line, without it: what a control sits among, for a reflex. */
+export function near(ref: string, n = 3): string[] {
+  const i = lines.findIndex((l) => refOf(l) === ref);
+  if (i < 0) return [];
+  return [...lines.slice(Math.max(0, i - n), i), ...lines.slice(i + 1, i + 1 + n)].map((l) => l.trim());
+}
+
 // The score of the "none of these" pseudo-candidate find() weighs every match against.
 const NONE = 0.35;
 const STOP = new Set("the a an to on in for of and or with at by my this that please click press find".split(" "));
