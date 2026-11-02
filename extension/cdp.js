@@ -372,7 +372,12 @@ const inflight = new Set(); // main-frame requestIds not yet finished
 let netLog = []; // [{ t, kind }] for settledAt(); only kept while not off
 let lastNetT = 0;
 const QUIET_MS = 100;
-const NO_NET = /^(WebSocket|EventSource)$/; // long-lived by design: never "idle"
+// WebSocket and EventSource are long-lived by design: never "idle". Document is
+// left to settle()'s own `loading` check: a cross-site iframe's document request
+// is reported starting on the main session and finishing only on the frame's own
+// (measured in headless Chrome on the OOPIF fixture), so counting it held every
+// page with such an iframe "busy" forever.
+const NO_NET = /^(WebSocket|EventSource|Document)$/;
 
 export const onSettle = (fn) => void (onSettleFn = fn);
 
