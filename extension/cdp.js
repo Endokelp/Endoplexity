@@ -14,7 +14,7 @@
 //
 // Requires Chrome 125+, where chrome.debugger.sendCommand accepts a sessionId.
 
-import { delta, serialize } from "./ax.js";
+import { delta, labelOf as lineLabel, serialize } from "./ax.js";
 
 const MAIN = ""; // the tab's own session — sendCommand target with no sessionId
 
@@ -364,6 +364,19 @@ async function settle() {
   if (tab.status === "loading") await loaded(tabId, 10_000);
 }
 
+/**
+ * The end of every action: settle, then hand back the page it produced.
+ *
+ * `quiet` is batch's middle steps (bridge/src/mcp.ts). They still settle, so
+ * the next step meets a page that has reacted, but they must NOT read it:
+ * every read moves sinceLast()'s baseline, and a read the model never sees
+ * would make the batch's final delta silently omit whatever changed during it.
+ */
+async function after(options, ack = "done") {
+  await settle();
+  return options?.quiet ? ack : snapshot(options);
+}
+
 export async function detach() {
   if (tabId === null) return;
   const id = tabId;
@@ -390,7 +403,11 @@ export async function snapshot(options) {
   // a detached frame, a new attachment — which are the events that really do
   // end a ref's meaning.
   const gen = generation;
-  refs = new Map();
+  // A peek is the gate's own read (bridge/src/mcp.ts): the whole page, uncut,
+  // so a Submit outside the model's window still counts. It is nobody's view,
+  // so it moves neither the refs the model holds nor sinceLast()'s baseline.
+  const peek = options?.peek === true;
+  const minted = new Map();
 
   const out = [];
   for (const [sessionId, frame] of sessions) {
@@ -408,9 +425,9 @@ export async function snapshot(options) {
     try {
       await send(sessionId, "Accessibility.enable");
       const { nodes } = await send(sessionId, "Accessibility.getFullAXTree");
-      const { text, refs: frameRefs } = serialize(nodes, frame.tag, options);
+      const { text, refs: frameRefs } = serialize(nodes, frame.tag, peek ? { maxLines: Infinity } : options);
       for (const [ref, backendNodeId] of frameRefs) {
-        refs.set(ref, { sessionId, backendNodeId, generation: gen });
+        minted.set(ref, { sessionId, backendNodeId, generation: gen });
       }
       out.push(text);
     } catch (err) {
@@ -421,6 +438,8 @@ export async function snapshot(options) {
       else out.push(`(frame ${frame.tag} unavailable: ${err.message})`);
     }
   }
+  if (peek) return out.join("\n");
+  refs = minted;
   return sinceLast(out.join("\n"), gen);
 }
 
@@ -462,6 +481,21 @@ function resolve(ref) {
   return hit;
 }
 
+/**
+ * What a ref is right now, read fresh from that one node, for the gate
+ * (bridge/src/mcp.ts readFor): a click is decided on the element it is about to
+ * land on, not on the page the model read some steps ago. Throws "stale ref" /
+ * "unknown ref" like every action, which the bridge reads as "nothing to weigh".
+ */
+export async function labelOf(ref) {
+  const { sessionId, backendNodeId } = resolve(ref);
+  await send(sessionId, "Accessibility.enable");
+  const { nodes } = await send(sessionId, "Accessibility.getPartialAXTree", { backendNodeId, fetchRelatives: false });
+  const node = nodes.find((n) => n.backendDOMNodeId === backendNodeId) ?? nodes[0];
+  if (!node) throw new Error(`no accessibility node for ${ref}`);
+  return lineLabel(node);
+}
+
 /** Centre of a ref in its own frame's coordinates, scrolled into view first. */
 async function centreOf(ref) {
   const { sessionId, backendNodeId } = resolve(ref);
@@ -498,8 +532,7 @@ export async function click(ref, options) {
   await send(sessionId, "Input.dispatchMouseEvent", { ...base, type: "mousePressed", buttons: 1 });
   await send(sessionId, "Input.dispatchMouseEvent", { ...base, type: "mouseReleased", buttons: 0 });
   console.log(`endo: click ${ref} at ${Math.round(x)},${Math.round(y)}`);
-  await settle();
-  return snapshot(options);
+  return after(options);
 }
 
 /**
@@ -515,8 +548,7 @@ export async function hover(ref, options) {
   const { x, y } = await centreOf(ref);
   await send(sessionId, "Input.dispatchMouseEvent", { type: "mouseMoved", x, y, button: "none", buttons: 0 });
   console.log(`endo: hover ${ref} at ${Math.round(x)},${Math.round(y)}`);
-  await settle();
-  return snapshot(options);
+  return after(options);
 }
 
 /**
@@ -552,8 +584,7 @@ export async function scroll(direction = "down", ref, options) {
     buttons: 0,
   });
   console.log(`endo: scroll ${direction} ${deltaY}px at ${Math.round(at.x)},${Math.round(at.y)}`);
-  await settle();
-  return snapshot(options);
+  return after(options);
 }
 
 /**
@@ -595,8 +626,7 @@ export async function key(name, options) {
   await send(MAIN, "Input.dispatchKeyEvent", { ...rest, text, type: "keyDown" });
   await send(MAIN, "Input.dispatchKeyEvent", { ...rest, type: "keyUp" });
   console.log(`endo: key ${name}`);
-  await settle();
-  return snapshot(options);
+  return after(options);
 }
 
 /**
@@ -623,7 +653,11 @@ export async function upload(path, match, options) {
         const { attributes } = await send(sessionId, "DOM.getAttributes", { nodeId });
         const attrs = {};
         for (let i = 0; i < attributes.length; i += 2) attrs[attributes[i]] = attributes[i + 1];
-        hits.push({ sessionId, nodeId, label: attrs["aria-label"] ?? attrs.name ?? attrs.id ?? attrs.accept ?? "(unlabelled)" });
+        // Whitespace collapsed: the label is the page's text and lands in the
+        // result's first line, and one carrying a newline could forge a line the
+        // bridge parses as page (the delta marker, a ref) in front of the real one.
+        const label = String(attrs["aria-label"] ?? attrs.name ?? attrs.id ?? attrs.accept ?? "(unlabelled)").replace(/\s+/g, " ").trim();
+        hits.push({ sessionId, nodeId, label });
       }
     } catch (err) {
       // Frames come and go; one dead frame must not kill the whole operation.
@@ -732,8 +766,7 @@ export async function select(ref, value, options) {
     throw new Error(outcome.slice("error: ".length));
   }
   console.log(`endo: select ${ref} -> "${outcome}"`);
-  await settle();
-  return snapshot(options);
+  return after(options, `selected "${outcome}"`);
 }
 
 /** What is attached right now — for eyeballing state from the console. */

@@ -40,6 +40,8 @@ export const BRIEFING_CORE = [
   "You cannot be sent files, but the user has configured some by key: read_file reads one, upload attaches one to a form. Use a key, and never ask for a file or a path.",
   "If an action did not do what you expected, take a different route rather than repeating it.",
   "Never answer from memory: every fact and every URL you report must come from a page you loaded in this run.",
+  "Several steps on refs you already have (fill a form, tick boxes, then click) go in ONE batch call, not one call each.",
+  "To locate an element on the page you were given, find costs less than reading the page again.",
 ].join(" ");
 
 /**
@@ -68,6 +70,8 @@ export const PRELOAD = [
   "forward",
   "tabs",
   "use_tab",
+  "batch",
+  "find",
 ];
 
 // Habit 1 is claude-only — cursor hands MCP tools to the model directly, with no

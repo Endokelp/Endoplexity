@@ -3,7 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { callPanel, askPanel } from "./relay.ts";
-import { check, remember, rememberApproval, resetApprovals, labelFor, type Mode } from "./gate.ts";
+import { check, reads, rememberApproval, resetApprovals, type Mode } from "./gate.ts";
+import { remember, labelFor, labelsOf, find, hasPage } from "./page.ts";
 import { keys, resolve } from "./files.ts";
 import { extract, page } from "./docs.ts";
 
@@ -28,6 +29,10 @@ const DENIED = "blocked — the human denied this action. Do not retry it; stop 
 // tokens and lets an ordinary CV or letter land whole, so the common case
 // never costs a second call.
 const READ_CAP = 8000;
+
+// find() answers with one line instead of a list at or above this. A ranking
+// cut, not odds: p is uncalibrated until Phase 16 fits it (see page.ts).
+const CONFIDENT = 0.8;
 
 // Shared by the two tools that ARRIVE somewhere. Reading a page is a different
 // job from acting on one, and it is the job the arriving tool can do for free:
@@ -64,36 +69,190 @@ export function setMode(next: unknown): void {
   resetApprovals();
 }
 
-export async function relay(name: string, args: Record<string, unknown>) {
-  const needs = check(name, args, mode);
-  if (needs) {
-    if (!(await askPanel(needs))) {
-      return { content: [{ type: "text" as const, text: DENIED }], isError: true };
-    }
-    // Watch mode asks about a whole class of action, so approving one has to
-    // stand for the rest of the task or it asks on every keystroke and nobody
-    // uses it twice. gate.ts ignores this in `normal`, where each irreversible
-    // action is meant to be answered on its own.
-    rememberApproval(name, args);
+// Tools whose result is not a page: everything else in tools.js hands back the
+// page it produced, and only pages may reach remember().
+const NO_PAGE = new Set(["type", "tabs"]);
+
+// The model-facing joint between an error and the page that came with it.
+const FRESH = "\n\nthe page as it is now:\n";
+
+/**
+ * Read what gate.ts reads() asked for. undefined: nothing was asked. null: the
+ * read failed, and check() asks the human rather than deciding on a guess:
+ * an accessibility read can fail while a click still lands.
+ */
+async function readFor(need: "ref" | "page" | null, args: Record<string, unknown>) {
+  if (!need) return undefined;
+  try {
+    if (need === "ref") return new Map([[String(args.ref), await callPanel("label", { ref: args.ref })]]);
+    // Whole and uncut, and moving neither the model's refs nor its delta
+    // baseline (cdp.js snapshot's `peek`). A frame that could not be read may
+    // be where the Submit is, and not knowing is not "no".
+    const page = await callPanel("snapshot", { peek: true });
+    return /^\(frame \S+ unavailable:/m.test(page) ? null : labelsOf(page);
+  } catch (err) {
+    // Not on the page at all: the panel refuses the action itself the same
+    // way, so there is nothing to weigh.
+    return /^(stale|unknown) ref /.test((err as Error).message) ? new Map<string, string>() : null;
   }
+}
+
+/**
+ * Ask the human if the policy says so: the denial to hand the model, or null
+ * to go ahead. relay() and batch() both come through here, so a step inside a
+ * batch asks exactly as the same call made on its own would.
+ */
+async function gated(name: string, args: Record<string, unknown>): Promise<string | null> {
+  const needs = check(name, args, mode, await readFor(reads(name, args, mode), args));
+  if (!needs) return null;
+  if (!(await askPanel(needs))) return DENIED;
+  // Watch mode asks about a whole class of action, so approving one has to
+  // stand for the rest of the task or it asks on every keystroke and nobody
+  // uses it twice. gate.ts ignores this in `normal`, where each irreversible
+  // action is meant to be answered on its own.
+  rememberApproval(name, args);
+  return null;
+}
+
+/**
+ * One call at a time reaches the panel. A check and the action it clears must
+ * meet the same page: run alongside, a use_tab between a click's read and the
+ * click moved it to another tab's Submit, unasked (Phase 15 review). The model
+ * can issue tool calls in parallel, so this is not hypothetical.
+ * ponytail: one global lock. One tab is driven at a time anyway; Phase 21
+ * (parallel runs) makes it per tab.
+ */
+let line: Promise<unknown> = Promise.resolve();
+type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
+function serial(job: (task: number) => Promise<Result>): Promise<Result> {
+  // The task a call belongs to is the one running when it was made, not when
+  // its turn comes: a call queued behind a gate prompt can outlive a Stop.
+  const task = epoch;
+  const run = line.then(() => (task === epoch ? job(task) : STOPPED));
+  line = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Bumped when the human stops a task, or it ends (index.ts). Killing the CLI
+ * stops new calls, not ones already in the bridge: a batch mid-way, or a call
+ * waiting its turn, would go on clicking. Each checks this before it acts.
+ */
+let epoch = 0;
+export function stop(): void {
+  epoch++;
+}
+const STOPPED: Result = { content: [{ type: "text", text: "stopped — the human stopped this task" }], isError: true };
+
+export const relay = (name: string, args: Record<string, unknown>) => serial((task) => relayNow(name, args, task));
+
+async function relayNow(name: string, args: Record<string, unknown>, task: number): Promise<Result> {
+  const denied = await gated(name, args);
+  if (denied) return { content: [{ type: "text" as const, text: denied }], isError: true };
+  // An approval can arrive after Stop: the prompt stays up until answered.
+  if (task !== epoch) return STOPPED;
   try {
     // The label is what turns "clicked @f0e38" into "clicked Submit
-    // application" in the panel. gate.ts already keeps the ref->label map for
-    // its own policy, so this costs a lookup rather than a round trip.
+    // application" in the panel. page.ts already keeps the ref->label map for
+    // the gate, so this costs a lookup rather than a round trip.
     const text = await callPanel(name, args, typeof args.ref === "string" ? labelFor(args.ref) : undefined);
-    remember(text);
+    if (!NO_PAGE.has(name)) remember(text);
     return { content: [{ type: "text" as const, text }] };
   } catch (err) {
-    const text = `error: ${(err as Error).message}`;
-    // A failed action's error message can carry the FRESH page (stale-ref
-    // recovery) — if that page never reaches remember(), the gate's
-    // ref->label map goes stale on exactly the page the model is about to
-    // act on next, and it silently stops recognising a submit button. Do
-    // not "clean up" this call: remember() is already a no-op on text with
-    // no ref lines, so it costs nothing on an ordinary error.
-    remember(text);
+    const { message, page } = err as Error & { page?: string };
+    // A failed action can carry the FRESH page (stale-ref recovery) — if that
+    // page never reaches remember(), the gate's ref->label map goes stale on
+    // exactly the page the model is about to act on next, and it silently
+    // stops recognising a submit button. The page arrives as its own field
+    // (relay.ts settle), never parsed out of the message: the message can echo
+    // what the model sent, and the model must not write the gate's page.
+    if (page !== undefined) remember(page);
+    const text = `error: ${message}${page === undefined ? "" : FRESH + page}`;
     return { content: [{ type: "text" as const, text }], isError: true };
   }
+}
+
+const STEPS = ["click", "type", "select", "key", "scroll", "hover"] as const;
+export type Step = {
+  do: (typeof STEPS)[number];
+  ref?: string;
+  text?: string;
+  value?: string;
+  name?: (typeof KEYS)[number];
+  direction?: "down" | "up";
+};
+
+// What each step needs, checked before the first one runs: a batch refused at
+// step 9 must not already have typed into eight fields.
+const NEEDS: Record<Step["do"], (keyof Step)[]> = {
+  click: ["ref"],
+  hover: ["ref"],
+  type: ["ref", "text"],
+  select: ["ref", "value"],
+  key: ["name"],
+  scroll: [],
+};
+
+/**
+ * Many steps, one model turn. A 12-field form was 12 turns, and every turn
+ * re-sends the whole conversation.
+ *
+ * Each step is the tool of the same name with the same args, through the same
+ * gate. Steps run `quiet` (no page read, see after() in cdp.js) and ONE read at
+ * the end returns the page, as a delta against the last page the model saw. By
+ * ref, never coordinates: a ref does not move when the viewport does.
+ */
+export const batch = (steps: Step[]) => serial((task) => batchNow(steps, task));
+
+async function batchNow(steps: Step[], task: number): Promise<Result> {
+  const bad = steps.findIndex((s) => NEEDS[s.do].some((k) => s[k] === undefined));
+  if (bad >= 0) {
+    const { do: kind } = steps[bad];
+    const text = `error: step ${bad + 1} (${kind}) needs ${NEEDS[kind].join(" and ")} — nothing ran`;
+    return { content: [{ type: "text" as const, text }], isError: true };
+  }
+
+  const log: string[] = [];
+  let page: string | undefined;
+  let stopped = false;
+  for (const [i, { do: name, ...args }] of steps.entries()) {
+    const what = `${i + 1}. ${name} ${args.ref ?? args.name ?? args.direction ?? ""}`.trimEnd();
+    const denied = task === epoch ? await gated(name, args) : null;
+    if (task !== epoch) {
+      log.push(`${what}: not run — the human stopped this task`);
+      stopped = true;
+      break;
+    }
+    if (denied) {
+      log.push(`${what}: ${denied}`);
+      stopped = true;
+      break;
+    }
+    try {
+      const label = typeof args.ref === "string" ? labelFor(args.ref) : undefined;
+      log.push(`${what}: ${await callPanel(name, { ...args, quiet: true }, label)}`);
+    } catch (err) {
+      const { message, page: fresh } = err as Error & { page?: string };
+      log.push(`${what}: error: ${message}`);
+      page = fresh;
+      stopped = true;
+      break;
+    }
+  }
+
+  let read = "";
+  try {
+    page ??= await callPanel("snapshot", {});
+  } catch (err) {
+    read = `(could not read the page: ${(err as Error).message})`;
+  }
+  // The page alone, never the step lines: those echo refs the model wrote.
+  if (page !== undefined) remember(page);
+  const head = stopped
+    ? `batch stopped at step ${log.length} of ${steps.length}`
+    : `batch: all ${steps.length} steps ran`;
+  const text = `${head}\n${log.join("\n")}${FRESH}${page ?? read}`;
+  return { content: [{ type: "text" as const, text }], ...(stopped ? { isError: true } : {}) };
 }
 
 function build() {
@@ -308,6 +467,59 @@ function build() {
       },
     },
     (args) => relay("use_tab", args),
+  );
+
+  server.registerTool(
+    "batch",
+    {
+      description:
+        "Run up to 20 steps on refs you already have in ONE call (fill a form, tick boxes, choose options, then click) and get the page back once, at the end. Each step is the tool it names with the same arguments. Stops at the first step that fails or that the human denies, and returns the page as it is then. A step cannot use a ref that an earlier step revealed: those are not on your page yet.",
+      inputSchema: {
+        steps: z
+          .array(
+            z.object({
+              do: z.enum(STEPS),
+              ref: z.string().optional(),
+              text: z.string().optional().describe("type"),
+              value: z.string().optional().describe("select"),
+              name: z.enum(KEYS).optional().describe("key"),
+              direction: z.enum(["down", "up"]).optional().describe("scroll"),
+            }),
+          )
+          .min(1)
+          .max(20),
+      },
+    },
+    ({ steps }) => batch(steps),
+  );
+
+  server.registerTool(
+    "find",
+    {
+      description:
+        'Find elements on the page you were last given from a description, e.g. "submit button" or "shipping email field", instead of reading the page again. Returns refs, most likely first, each with a probability.',
+      inputSchema: {
+        query: z.string().min(1),
+        limit: z.number().int().min(1).max(10).optional().describe("Default 5"),
+      },
+    },
+    ({ query, limit }) => {
+      // Answered from the page the bridge already holds, never by asking the
+      // panel to read again: a read moves cdp.js's delta baseline, and one the
+      // model never saw would make its next action's delta leave changes out.
+      // Nor does the answer go through remember(): it is a subset of the page.
+      if (!hasPage()) {
+        return { content: [{ type: "text" as const, text: "error: no page read yet — navigate or snapshot first" }], isError: true };
+      }
+      const hits = find(query, limit);
+      const [top] = hits;
+      const text = !top
+        ? `nothing on the page matches "${query}" — snapshot to read it`
+        : top.p >= CONFIDENT
+          ? `best match ${top.line} (p=${top.p})`
+          : hits.map((h) => `${h.line} (p=${h.p})`).join("\n");
+      return { content: [{ type: "text" as const, text }] };
+    },
   );
 
   return server;

@@ -13,61 +13,7 @@
  * extra round trip to the panel to ask "what does this ref point at".
  */
 
-import { UNCHANGED } from "../../extension/ax.js";
-
-// One actionable line out of serialize(): "@ref [role] "name"", optionally
-// followed by a value or flags this policy does not need.
-const LINE = /^\s*(@\S+)\s+(\[[a-zA-Z]+\]\s+"[^"]*")/;
-
-let labels = new Map<string, string>();
-
-/**
- * Parse relayed page text and replace the ref -> label map wholesale. Refs
- * are per-page — cdp.js mints a fresh generation on every snapshot and
- * invalidates the last one — so there is nothing to merge in.
- *
- * Text with no ref lines is not a page at all: it's an ack like
- * "typed 4 characters into @f0e8" (tools.js's `type` return). Leaving the
- * map untouched in that case means a mid-form `type` call doesn't blind the
- * gate to the buttons the last real snapshot found.
- */
-export function remember(text: string): void {
-  // A delta names only what CHANGED, so replacing the map with one would blind
-  // the gate to every control that stayed put — and "Submit application" is
-  // precisely the thing that does not move while a form is being filled. Patch
-  // instead. Imported from ax.js rather than written out again here: this is
-  // the same "the gate depends on ax.js's line format" coupling the module
-  // already accepts, and a copy of the marker could drift silently into a gate
-  // that never fires.
-  if (text.startsWith(UNCHANGED)) {
-    for (const line of text.split("\n")) {
-      const sign = line[0];
-      if (sign !== "+" && sign !== "-") continue;
-      const m = LINE.exec(line.slice(1));
-      if (!m) continue;
-      // Removals come first in a delta, so a control whose label merely changed
-      // is deleted and re-added in that order rather than deleted afterwards.
-      if (sign === "+") labels.set(m[1], m[2]);
-      else labels.delete(m[1]);
-    }
-    return;
-  }
-  const found = new Map<string, string>();
-  for (const line of text.split("\n")) {
-    const m = LINE.exec(line);
-    if (m) found.set(m[1], m[2]);
-  }
-  if (found.size === 0) return;
-  labels = found;
-}
-
-// Look up a ref's label without gating anything, for the UI to render e.g.
-// `clicked "Submit application"` instead of a bare ref. Undefined for a
-// stale/unknown ref — same "not on the current page" case check() below
-// treats as nothing worth blocking on.
-export function labelFor(ref: string): string | undefined {
-  return labels.get(ref);
-}
+import { labelFor, controls } from "./page.ts";
 
 // ponytail: a label heuristic, not semantic understanding of the page — the
 // known ceiling. False positives ("Apply filters") prompt harmlessly, one
@@ -87,15 +33,17 @@ const IRREVERSIBLE = /\b(submit|apply|pay|buy|purchase|order|checkout|confirm|de
 export type Mode = "watch" | "normal" | "trust";
 
 // watch mode's whole rule: every mutating tool asks, every read is free.
-// Mirrors the tool list mcp.ts registers — the 4 reads (snapshot, tabs,
-// hover, scroll) are simply everything not in this set.
+// Mirrors the tool list mcp.ts registers — the reads (snapshot, tabs,
+// hover, scroll, find) are simply everything not in this set. batch never
+// reaches check() under its own name: each of its steps is checked as the
+// tool it names.
 const MUTATING = new Set(["click", "type", "key", "select", "upload", "navigate", "use_tab", "back", "forward"]);
 
 // watch-mode approval memory: once a tool kind is approved, stop asking for
 // the rest of the task — without this, watch asks on every keystroke and is
 // unusable. normal never touches this set; see check() below.
 // ponytail: keyed on tool name alone, not (tool, origin) as the ideal would
-// be — labels (the only page state gate.ts keeps) comes from serialize()
+// be — labels (the only page state the gate reads, kept in page.ts) come from serialize()
 // text and never carries an origin, and getting one means a new round trip
 // to the panel. Add per-origin scoping if a task that hops origins mid-run
 // turns out to need it.
@@ -124,9 +72,9 @@ export function resetApprovals(): void {
 // available to quote (either the tool has no ref, or the ref's label is
 // unremarkable) — plain and honest rather than borrowing normal mode's
 // "reads as irreversible" framing, which does not apply here.
-function describe(name: string, args: Record<string, unknown>): string {
+function describe(name: string, args: Record<string, unknown>, labels: ReadonlyMap<string, string> | undefined): string {
   const ref = typeof args.ref === "string" ? args.ref : undefined;
-  const label = ref && labels.get(ref);
+  const label = ref && (labels ? labels.get(ref) : labelFor(ref));
   if (label) return `${name} ${ref} ${label}`;
   switch (name) {
     case "click":
@@ -153,6 +101,26 @@ function describe(name: string, args: Record<string, unknown>): string {
 }
 
 /**
+ * What deciding this call needs read fresh from the panel first: "ref" is the
+ * clicked element's label as it is now, "page" every label on the page now,
+ * null nothing.
+ *
+ * Not trusting page.ts's copy for these is the Phase 15 review's lesson. The
+ * copy is the page as the model last read it, and three ways it differs from
+ * the page an action lands on each let a click on Submit through unasked: a
+ * quiet batch step moved the page, a `from:` window or delta left a ref out,
+ * and a label kept from an earlier window went stale. Guessing when the copy
+ * is stale missed a case each time; reading costs one CDP call for a click.
+ * Only normal mode weighs labels: trust weighs nothing, watch weighs the tool.
+ */
+export function reads(name: string, args: Record<string, unknown>, mode?: Mode): "ref" | "page" | null {
+  if (mode === "trust" || mode === "watch") return null;
+  if (name === "click" && typeof args.ref === "string") return "ref";
+  if (name === "key" && args.name === "Enter") return "page";
+  return null;
+}
+
+/**
  * Does this tool call need a human? Depends on the mode the panel set for
  * this task — the model never sees or sets `mode`, only the bridge passes
  * it through from the panel:
@@ -167,16 +135,29 @@ function describe(name: string, args: Record<string, unknown>): string {
  * mode string runs this branch, never "trust" — a bad mode value must fail
  * closed, not open.
  *
+ * `fresh` is what reads() asked the panel for, read just now: the labels to
+ * decide on instead of page.ts's copy. `null` means that read failed, and a
+ * decision that needed it asks rather than guessing (fails closed).
+ *
  * Returns a one-line description for the approval prompt, or null to let it
  * run.
  */
-export function check(name: string, args: Record<string, unknown>, mode?: Mode): string | null {
+export function check(
+  name: string,
+  args: Record<string, unknown>,
+  mode?: Mode,
+  fresh?: ReadonlyMap<string, string> | null,
+): string | null {
   if (mode === "trust") return null;
 
   if (mode === "watch") {
     if (!MUTATING.has(name)) return null;
     if (approvedTools.has(name)) return null;
-    return describe(name, args);
+    return describe(name, args, fresh ?? undefined);
+  }
+
+  if (fresh === null && reads(name, args, mode)) {
+    return `${describe(name, args, undefined)} — the page could not be read to check what this is`;
   }
 
   // "normal", and the fallback for anything that isn't exactly "watch" or
@@ -194,7 +175,7 @@ export function check(name: string, args: Record<string, unknown>, mode?: Mode):
     // ponytail: page-level heuristic, not focus tracking — the known ceiling
     // is a page that mixes a submit button with an unrelated search box,
     // which over-gates. Add real focus tracking if that turns out to matter.
-    for (const [ref, label] of labels) {
+    for (const [ref, label] of fresh ?? controls()) {
       if (IRREVERSIBLE.test(label)) return `press Enter — this page has ${ref} ${label}`;
     }
     return null;
@@ -203,8 +184,9 @@ export function check(name: string, args: Record<string, unknown>, mode?: Mode):
   if (name !== "click") return null;
   const ref = args.ref;
   if (typeof ref !== "string") return null;
-  const label = labels.get(ref);
-  // Not in the map: the ref is stale or never existed. The panel is about to
+  const label = fresh ? fresh.get(ref) : labelFor(ref);
+  // Not in the map: the ref is stale or never existed (the fresh read came
+  // back "unknown ref", or the copy never had it). The panel is about to
   // reject it with "unknown/stale ref" on its own, so gating it buys
   // nothing and just trains the human to rubber-stamp the prompt.
   if (!label) return null;

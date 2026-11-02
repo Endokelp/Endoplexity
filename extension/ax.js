@@ -70,6 +70,16 @@ function valueOf(node) {
 }
 
 /**
+ * `[role] "name"`, the part of a line that says what a control is. Shared with
+ * cdp.js labelOf(), so the gate's fresh read of one element and the page the
+ * model reads cannot drift into two spellings of the same button.
+ */
+export function labelOf(node) {
+  const name = clean(node.name?.value);
+  return `[${node.role?.value ?? ""}]${name ? ` "${name}"` : ""}`;
+}
+
+/**
  * @param nodes  Accessibility.getFullAXTree result for ONE frame
  * @param frame  frame tag, e.g. "f0" for the main frame — refs come out as @f0e3
  * @param full   keep body prose too. Off by default: the model pays for this on
@@ -117,7 +127,7 @@ export function serialize(nodes, frame, { maxLines = 300, full = false, from = 0
       // A node with no backend id cannot be acted on either way; it used to get
       // a ref that could only ever answer "unknown ref".
       if (ref) refs.set(ref, id);
-      emit(`${ref && `${ref} `}[${role}]${name ? ` "${name}"` : ""}${valueOf(node)}${flagsOf(node)}`, depth);
+      emit(`${ref && `${ref} `}${labelOf(node)}${valueOf(node)}${flagsOf(node)}`, depth);
       childDepth = depth + 1;
       childAnnounced = name;
     } else if (PROSE.has(role) && (full || LEAN_PROSE.has(role)) && name && name !== announced) {

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { ChildProcess } from "node:child_process";
 import { WebSocketServer, type WebSocket } from "ws";
 import { authorize, authorizeMcp, ALLOWED_ORIGIN } from "./auth.ts";
-import { handleMcp, setMode } from "./mcp.ts";
+import { handleMcp, setMode, stop } from "./mcp.ts";
 import { setPanel, dropPanel, settle, settleGate, sendPanel } from "./relay.ts";
 import { writeMcpConfig } from "./claude.ts";
 import { writeCursorConfig } from "./cursor.ts";
@@ -172,6 +172,9 @@ function startTask(
     // landed, the same text pattern is the agent quoting itself, not faking.
     if (event.type === "result" && !sawTool && !isRetry && sawFake) redo = true;
     if (event.type === "done" || event.type === "failed") running = null;
+    // Anything of this task's still in the bridge (a batch mid-way, a queued
+    // call) belongs to a CLI that is gone.
+    if (event.type === "done" || event.type === "failed") stop();
     // Untruncated, because this is the one line that settles "did the agent
     // actually have the tools" — a model that emits fake <function_calls> XML as
     // text looks identical in the panel to one whose tools are missing.
@@ -287,7 +290,11 @@ wss.on("connection", (ws) => {
         // so a refusal nobody sees is a paperclip that silently does nothing.
         ws.send(JSON.stringify({ type: "file-failed", error: (err as Error).message }));
       }
-    } else if (msg.type === "stop") running?.kill();
+    } else if (msg.type === "stop") {
+      // Killing the CLI stops its next call, not a batch already in the bridge.
+      stop();
+      running?.kill();
+    }
     // The panel archived its transcript and started clean, so the CLI session
     // must go too — otherwise a Reply after the next remount would resume the
     // conversation the user just put away. Only the id is dropped; a task still

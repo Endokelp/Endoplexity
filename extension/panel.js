@@ -285,17 +285,19 @@ const MOVES = new Set(["navigate", "use_tab", "back", "forward"]);
 async function answer({ id, name, args, label }) {
   // The row goes up before the call runs: this is the "watch it work" line, and
   // a step that only appears once it has finished is not one.
-  const row = ui.tool(name, args, label);
+  // The gate's checks before an action are the bridge's business, not a step
+  // the agent took, so they get no row.
+  const row = name === "label" || args?.peek ? null : ui.tool(name, args, label);
   try {
     const value = await runTool(name, args);
-    row.ok(value);
+    row?.ok(value);
     if (MOVES.has(name)) setWhere(await cdp.currentPage().catch(() => null));
     send({ type: "tool-result", id, ok: true, value });
   } catch (err) {
     // Errors go back as results, not thrown away: "stale ref" is the model's cue
     // to snapshot again, and it can only act on what it is told.
-    row.fail(err.message);
-    send({ type: "tool-result", id, ok: false, error: err.message });
+    row?.fail(err.message);
+    send({ type: "tool-result", id, ok: false, error: err.message, page: err.page });
   }
 }
 

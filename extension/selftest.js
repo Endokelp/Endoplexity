@@ -119,6 +119,17 @@ async function runChecks(check, skip, filePath) {
 
   // "Referral" is the option whose markup has surrounding whitespace/newlines —
   // choosing it by the clean text proves the trim, not just that select() works.
+  // batch's middle steps: the ack alone and no read. The read after it must
+  // still report the change, which it would not ("nothing") had the quiet
+  // step secretly read the page and moved the delta baseline.
+  await cdp.snapshot();
+  const ack = await cdp.select(select, "LinkedIn", { quiet: true });
+  check("a quiet action returns its ack, not the page", ack === 'selected "LinkedIn"' ? null : `got ${ack.length} chars`);
+  const after = await cdp.snapshot();
+  check(
+    "the read after a quiet action reports what it changed",
+    after.startsWith("---") && !after.includes("(nothing") ? null : after.slice(0, 120),
+  );
   snap = await cdp.select(select, "Referral");
 
   if (filePath) {

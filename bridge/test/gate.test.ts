@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { delta, serialize, UNCHANGED } from "../../extension/ax.js";
-import { check, remember, labelFor, rememberApproval, resetApprovals } from "../src/gate.ts";
+import { remember, labelFor } from "../src/page.ts";
+import { check, rememberApproval, resetApprovals } from "../src/gate.ts";
 import { askPanel, setPanel, dropPanel, panelConnected, settle, settleGate } from "../src/relay.ts";
 import { relay } from "../src/mcp.ts";
 
@@ -90,12 +91,17 @@ test("an approved click is released to the panel", async () => {
 
   const result = relay("click", { ref: submitRef });
   await flush();
+  // The gate decides on the element as it is now, read first (mcp.ts readFor).
+  const read = panel.sent.find((m) => m.name === "label");
+  assert.ok(read, "the click was weighed without reading what it lands on");
+  settle({ id: read.id as number, ok: true, value: '[button] "Submit Application"' });
+  await flush();
   const gate = panel.sent.find((m) => m.type === "gate");
   assert.ok(gate, "the click was relayed without ever asking");
 
   settleGate({ id: gate.id as number, approved: true });
   await flush();
-  const call = panel.sent.find((m) => m.type === "tool");
+  const call = panel.sent.find((m) => m.type === "tool" && m.name === "click");
   assert.ok(call, "approval did not release the click");
 
   settle({ id: call.id as number, ok: true, value: '@f0e1 [heading] "Thanks"' });

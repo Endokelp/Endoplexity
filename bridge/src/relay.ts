@@ -76,14 +76,21 @@ export function sendPanel(payload: Record<string, unknown>): boolean {
   return true;
 }
 
-/** Resolve the call the panel is answering. Unknown ids are late timeouts. */
-export function settle(msg: { id?: number; ok?: boolean; value?: string; error?: string }) {
+/**
+ * Resolve the call the panel is answering. Unknown ids are late timeouts.
+ * A failure may carry the page as it is now (stale-ref recovery in tools.js),
+ * kept apart from the message because the message can echo model input.
+ */
+export function settle(msg: { id?: number; ok?: boolean; value?: string; error?: string; page?: string }) {
   const hit = typeof msg.id === "number" && pending.get(msg.id);
   if (!hit) return;
   pending.delete(msg.id!);
   clearTimeout(hit.timer);
   if (msg.ok) hit.resolve(msg.value ?? "");
-  else hit.reject(new Error(msg.error ?? "the panel gave no reason"));
+  else {
+    const err = new Error(msg.error ?? "the panel gave no reason");
+    hit.reject(typeof msg.page === "string" ? Object.assign(err, { page: msg.page }) : err);
+  }
 }
 
 /**
