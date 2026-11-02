@@ -52,6 +52,17 @@ const http = createServer(async (req, res) => {
     return void (await handleMcp(req, res));
   }
 
+  // claude.ts posts here when its reader subagent starts or hands back. A
+  // route rather than a call because the bench runs that adapter in a process
+  // of its own, and this is the one door both share. Same token, same refusal
+  // of an Origin, as /mcp: what it does is small, but it is still the panel.
+  if (url.pathname === "/forget" && req.method === "POST") {
+    if (!authorizeMcp(req.headers.origin, url.searchParams.get("token"), token)) return void res.writeHead(401).end();
+    console.log("reader handoff: the next read is a whole page");
+    sendPanel({ type: "forget" });
+    return void res.writeHead(204).end();
+  }
+
   const fixture = FIXTURES[url.pathname];
   if (!fixture) return void res.writeHead(404).end();
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" });

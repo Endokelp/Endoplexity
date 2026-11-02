@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createInterface } from "node:readline";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
@@ -74,10 +74,55 @@ export const PRELOAD = [
   "find",
 ];
 
+/**
+ * The reader scout, claude only (cursor and codex have no subagents).
+ *
+ * Every page a research task reads stays in the context every later turn
+ * re-sends. Handed to a subagent, the pages stay in ITS context and only the
+ * answer enters the main one. Haiku because reading is not reasoning; spelled
+ * out because the `haiku` alias resolved to 4.5 (see models.ts).
+ *
+ * The tool list is the boundary of the scout, and it was measured, not assumed
+ * (2026-11-01, claude 2.1.280): asked to list its tools, the reader named these
+ * four and nothing else, and called `tabs`. Read tools only, so the scout has
+ * nothing the gate would weigh.
+ */
+const READER = {
+  reader: {
+    description:
+      "Reads web pages in the browser and returns only the answer you asked for. Give it every page and exactly what to bring back in one job.",
+    prompt: [
+      "You read web pages for another agent and hand back only what it asked for.",
+      "navigate returns the page; pass full:true when you need the prose, and use snapshot with from: to read past a cut-off page.",
+      "Never answer from memory: every fact must come from a page you loaded, and give the URL each one came from.",
+      "Reply with the answer alone, as short as it can be while complete. No page dumps.",
+    ].join(" "),
+    tools: ["mcp__endo__snapshot", "mcp__endo__navigate", "mcp__endo__tabs", "mcp__endo__use_tab"],
+    model: "claude-haiku-5-5",
+  },
+};
+
+/**
+ * The built-in agent types, denied so `reader` is the only one the Agent tool
+ * offers. Not a boundary: measured, a general-purpose agent spawned here got
+ * the session's own pool (ToolSearch, Agent, the endo tools) and no shell,
+ * because `--tools` bounds subagents too. It is cost: each one's description
+ * rides in the Agent tool's schema on every turn (~540 tokens for these six),
+ * and each would run on the main model instead of Haiku.
+ * ponytail: a list, so a built-in type added by a later CLI shows up offered
+ * until named here. Harmless (it gets the same pool), only a few tokens a turn.
+ * `--allowedTools "Agent(reader)"` was tried as the rot-proof form and does
+ * NOT stop the others: general-purpose still ran.
+ */
+const BUILTIN_AGENTS = ["general-purpose", "Explore", "Plan", "claude", "claude-code-guide", "statusline-setup"];
+
 // Habit 1 is claude-only — cursor hands MCP tools to the model directly, with no
 // deferred-tool step to get wrong.
 const BRIEFING = [
   BRIEFING_CORE,
+  "To read several pages, hand the reader agent ONE job naming every page and what to bring back;",
+  "the pages stay out of your context. It drives the same tab you do, so the tab is wherever it left it.",
+  // Last, with nothing after it: a trailing full stop gets copied into the query.
   "Load every browser tool in ONE ToolSearch call, query:",
   `select:${PRELOAD.map((name) => `mcp__endo__${name}`).join(",")}`,
 ].join(" ");
@@ -115,7 +160,14 @@ export function writeMcpConfig(port: number, token: string): string {
  *    ToolSearch has to stay: MCP tools arrive deferred, and it is the only way
  *    to reach them. Measured — with `--tools ""` the agent never sees a single
  *    endo tool. It only fetches schemas, so it grants no new reach itself.
- *  - `--allowedTools "ToolSearch,mcp__endo__*"` auto-approves both. Print mode
+ *    Agent is the second entry, for the reader scout, and it grants no reach
+ *    either: a subagent draws from this same pool. Measured 2026-11-01 — a
+ *    general-purpose agent spawned under it reported ToolSearch, Agent and the
+ *    endo tools, no shell. It costs ~3.2k tokens of schema a turn, mostly
+ *    cached; the bench decides whether the scout earns it back.
+ *  - `--agents` defines the reader; `--disallowedTools` hides the built-in
+ *    agent types (see READER and BUILTIN_AGENTS above).
+ *  - `--allowedTools "ToolSearch,Agent,mcp__endo__*"` auto-approves all three. Print mode
  *    with only `mcp__endo__*` leaves ToolSearch visible but uncallable — the
  *    model then pastes fake `<function_calls>` XML as text and exits in one
  *    turn. Measured 2026-08-01 against claude 2.1.170.
@@ -153,12 +205,38 @@ export const claudeArgs = (prompt: string, model: string, resume?: string): stri
   "--strict-mcp-config",
   "--setting-sources",
   "",
+  "--agents",
+  JSON.stringify(READER),
+  // Variadic like --allowedTools; the flag after it ends the list.
+  "--disallowedTools",
+  BUILTIN_AGENTS.map((name) => `Agent(${name})`).join(","),
   "--tools",
-  "ToolSearch",
+  "ToolSearch,Agent",
   // Variadic, so it stays last or it swallows whatever follows.
   "--allowedTools",
-  "ToolSearch,mcp__endo__*",
+  "ToolSearch,Agent,mcp__endo__*",
 ];
+
+/**
+ * The reader subagent is starting or handing back. It and the main model share
+ * the panel's delta baseline but not their contexts, so whichever reads next
+ * must get a whole page, not "unchanged" against a page it never read. Either
+ * side needs a model turn before its first call; this takes milliseconds.
+ *
+ * Through the bridge's /forget route, not a direct call: the bench runs this
+ * adapter in a process of its own, and the route is the one door both share.
+ * Fire and forget: a lost reset costs one confusing delta, never data.
+ */
+function forget(): void {
+  let url: URL;
+  try {
+    url = new URL(JSON.parse(readFileSync(CONFIG_PATH, "utf8")).mcpServers.endo.url);
+  } catch {
+    return;
+  }
+  url.pathname = "/forget";
+  fetch(url, { method: "POST" }).catch(() => {});
+}
 
 /**
  * Spawn `claude -p` with browser tools and nothing else. Pass `resume` to
@@ -178,7 +256,15 @@ export function runClaude(
     claudeArgs(prompt, model, resume),
     // Somewhere with no CLAUDE.md, belt to --setting-sources' braces.
     // stdin ignored: -p otherwise waits 3s for piped input that never comes.
-    { cwd: tmpdir(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+    // Background tasks off: a backgrounded reader would drive the tab while the
+    // main model does. Measured: with this set, `run_in_background` leaves the
+    // Agent schema and a reader asked to run in the background ran in front.
+    {
+      cwd: tmpdir(),
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1" },
+    },
   );
 
   // readline does the line framing — NDJSON arrives split across chunks.
@@ -189,6 +275,7 @@ export function runClaude(
     // `null` line used to reach sessionOf() and kill the whole bridge.
     let event;
     try { event = JSON.parse(line); } catch {}
+    if (event?.type === "system" && (event.subtype === "task_started" || event.subtype === "task_notification")) forget();
     onEvent(event && typeof event === "object" ? event : { type: "stray", text: line });
   });
 

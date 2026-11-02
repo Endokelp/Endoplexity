@@ -447,6 +447,15 @@ export async function snapshot(options) {
 let shown = { generation: -1, text: "", run: 0 };
 
 /**
+ * Make the next read a full page. The bridge calls this when claude's reader
+ * subagent starts and when it hands back: the two share `shown` but not their
+ * contexts, so a delta against the other's read describes a page never read.
+ */
+export function forget() {
+  shown = { generation: -1, text: "", run: 0 };
+}
+
+/**
  * How many deltas may follow one full page.
  *
  * Not a tuning knob so much as a floor under the worst case: the CLIs manage

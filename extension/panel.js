@@ -468,6 +468,8 @@ function connect() {
     }
     if (msg.type === "file-failed") return void ui.note(`could not attach — ${msg.error}`, true);
     if (msg.type === "gate") return void showGate(msg);
+    // claude's reader subagent started or handed back: see forget() in cdp.js.
+    if (msg.type === "forget") return void cdp.forget();
     if (msg.type === "task-event") {
       // "done" is the child exiting, however it went — including a Stop.
       if (msg.event.type === "done" || msg.event.type === "failed") {

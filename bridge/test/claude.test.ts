@@ -34,8 +34,8 @@ test("the briefing tells the agent it can read a configured file, not only attac
   assert.match(briefing, /mcp__endo__read_file/);
 });
 
-test("print mode auto-approves ToolSearch, not only mcp__endo__*", () => {
-  assert.equal(valueOf(args(), "--allowedTools"), "ToolSearch,mcp__endo__*");
+test("print mode auto-approves ToolSearch and Agent, not only mcp__endo__*", () => {
+  assert.equal(valueOf(args(), "--allowedTools"), "ToolSearch,Agent,mcp__endo__*");
 });
 
 test("--allowedTools stays last — it is variadic and swallows whatever follows", () => {
@@ -61,10 +61,23 @@ test("a reply resumes exactly the session it was given", () => {
 // A resumed run that lost these flags is a browser agent with a shell behind it.
 test("resuming keeps the whole tool boundary", () => {
   const argv = args("abc-123");
-  assert.equal(valueOf(argv, "--tools"), "ToolSearch");
-  assert.equal(valueOf(argv, "--allowedTools"), "ToolSearch,mcp__endo__*");
+  assert.equal(valueOf(argv, "--tools"), "ToolSearch,Agent");
+  assert.equal(valueOf(argv, "--allowedTools"), "ToolSearch,Agent,mcp__endo__*");
   assert.equal(valueOf(argv, "--setting-sources"), "");
   assert.ok(argv.includes("--strict-mcp-config"));
+  assert.deepEqual(Object.keys(JSON.parse(valueOf(argv, "--agents"))), ["reader"]);
+  assert.match(valueOf(argv, "--disallowedTools"), /Agent\(general-purpose\)/);
+});
+
+// The scout reads; it must never hold a tool the gate weighs or that acts on a page.
+test("the reader scout gets the read tools and nothing else", () => {
+  const { reader } = JSON.parse(valueOf(args(), "--agents"));
+  assert.deepEqual([...reader.tools].sort(), ["mcp__endo__navigate", "mcp__endo__snapshot", "mcp__endo__tabs", "mcp__endo__use_tab"]);
+  assert.equal(reader.model, "claude-haiku-5-5");
+});
+
+test("background tasks are off, so a scout never drives the tab alongside the main model", () => {
+  assert.match(src, /CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"/);
 });
 
 test("--bare never reaches the spawn — it would force ANTHROPIC_API_KEY", () => {
