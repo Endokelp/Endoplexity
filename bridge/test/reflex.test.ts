@@ -267,6 +267,8 @@ test("a mark only counts for an option the row asked about, and survives a resta
   await until(() => panelState().review.length === 1, "it is up for review: Jev would ask, the regex did not");
   const [row] = panelState().review;
   assert.equal(row.answer, "a");
+  // What to mark is the click, not the page it was on: the state lists the URL first.
+  assert.equal(row.what, 'Action: click [button] "Finish"');
   assert.equal(mark(row.id, "maybe"), false);
   assert.equal(mark("nope", "a"), false);
   assert.equal(mark(row.id, "a"), true);

@@ -417,7 +417,10 @@ export function review(limit = 10) {
       const wouldAsk = r.reflex === "gate" && a.choice === "a" && r.answers.lexical?.choice === "b";
       const blocked = r.reflex === "obstacle" && a.choice !== null && a.choice !== "ready";
       if (!wouldAsk && !blocked) continue;
-      const what = r.state.split("\n").find((l) => l.startsWith("Action: ") || l.startsWith("URL: ")) ?? r.state.slice(0, 80);
+      // The click for a Gate row, the page for an Obstacle row. Gate's state
+      // lists the URL first, so one find() over both prefixes named the page.
+      const lines = r.state.split("\n");
+      const what = lines.find((l) => l.startsWith("Action: ")) ?? lines.find((l) => l.startsWith("URL: ")) ?? r.state.slice(0, 80);
       const options = r.reflex === "gate" ? GATE_OPTIONS : Object.fromEntries(Object.keys(r.question.criteria).map((k) => [k, k]));
       out.push({ id: r.id, reflex: r.reflex, what, backend, answer: a.choice, p: Math.round((a.p[a.choice!] ?? 0) * 100) / 100, options });
       break;
