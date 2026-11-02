@@ -279,7 +279,7 @@ a full page once and then only the lines that changed afterward: 119,856 →
 ## Status
 
 Early. `v0.0.1`, and honest about it. The tool layer, approval gate, session
-continuity, and panel are all built and tested: **156 unit tests**, plus an
+continuity, and panel are all built and tested: **245 unit tests**, plus an
 in-panel self-test that drives the real CDP layer against a cross-origin
 fixture (run `await endo.selftest()` in the panel's own console).
 
@@ -301,8 +301,9 @@ Known gaps, stated rather than hidden:
 ## Development
 
 ```bash
-npm test     # 156 tests, node:test, no framework, no build step
+npm test     # 245 tests, node:test, no framework, no build step
 npm start    # run the bridge in the foreground to watch its log
+node scripts/live.ts launch   # the panel in Chrome for Testing, driven from a terminal
 ```
 
 There's no bundler and no framework here. The extension is plain HTML and
