@@ -126,9 +126,14 @@ async function runChecks(check, skip, filePath) {
   const ack = await cdp.select(select, "LinkedIn", { quiet: true });
   check("a quiet action returns its ack, not the page", ack === 'selected "LinkedIn"' ? null : `got ${ack.length} chars`);
   const after = await cdp.snapshot();
+  // Reported, as a delta OR as the whole page. A native select moves three lines
+  // (its value, and `selected` leaving one option for another), and on this
+  // 14-line fixture six changed lines is over delta()'s 40% bar, so the whole
+  // page is the right answer: asserting a delta here failed the first live run
+  // with the code correct. A secret read would give "(nothing" and no new value.
   check(
     "the read after a quiet action reports what it changed",
-    after.startsWith("---") && !after.includes("(nothing") ? null : after.slice(0, 120),
+    after.includes('"Source" = "LinkedIn"') && !after.includes("(nothing") ? null : after.slice(0, 120),
   );
   snap = await cdp.select(select, "Referral");
 
