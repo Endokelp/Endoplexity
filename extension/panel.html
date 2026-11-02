@@ -911,7 +911,7 @@
       footer details[open] summary { color: var(--text); }
       /* The disclosure opens as a sheet above the composer, so the summary row
          never jumps and the transcript is never pushed off screen. */
-      #log, #history {
+      #log, #history, #reflexes {
         position: fixed;
         left: 12px;
         right: 12px;
@@ -935,6 +935,49 @@
         color: var(--text-soft);
         margin: 0;
       }
+
+      /* The Reflexes sheet: the History sheet's frame, in the UI font. */
+      #reflexes {
+        max-height: 60vh;
+        overflow: auto;
+        font-family: var(--sans);
+        font-size: var(--t-meta);
+        line-height: 1.5;
+        color: var(--text-soft);
+        scrollbar-width: thin;
+        scrollbar-color: var(--line) transparent;
+      }
+      #reflexes select { max-width: none; flex: 0 1 auto; border-color: var(--line-soft); }
+      #reflexes input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
+      .rx-switch { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: var(--t-ui); font-weight: 560; cursor: pointer; }
+      .rx-list { margin: 8px 0; }
+      .rx-line { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+      .rx-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      .rx-name b { color: var(--text); font-weight: 600; font-size: var(--t-ui); }
+      .rx-name span { font-size: var(--t-micro); color: var(--text-faint); }
+      .rx-stats { padding: 0 0 4px 0; font-size: var(--t-micro); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+      .rx-status { padding: 4px 0; font-size: var(--t-micro); color: var(--text-faint); }
+      .rx-jev { padding: 6px 0; border-top: 1px solid var(--line-soft); }
+      .rx-jev p { margin: 0 0 6px; font-size: var(--t-micro); color: var(--text-soft); }
+      .rx-keyrow { display: flex; gap: 6px; margin-top: 6px; }
+      #rx-jev-key {
+        flex: 1;
+        min-width: 0;
+        height: 27px;
+        padding: 0 10px;
+        font: var(--t-meta) / 1 var(--sans);
+        color: var(--text);
+        background: var(--sink);
+        border: 1px solid var(--line-soft);
+        border-radius: 999px;
+      }
+      #reflexes .label { margin: 8px 0 4px; }
+      .rx-item { padding: 5px 0; border-top: 1px solid var(--line-soft); }
+      .rx-what { color: var(--text); font-family: var(--mono); font-size: var(--t-micro); overflow-wrap: anywhere; }
+      .rx-meta { font-size: var(--t-micro); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+      .rx-opts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+      .rx-btn { height: 23px; padding: 0 9px; font-size: var(--t-meta); border-color: var(--line); }
+      .rx-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--text-faint); font-variant-numeric: tabular-nums; }
 
       /* The session list. Sessions are stored newest first and index 0 is the
          live one, so the list needs no sorting and no "current" section. */
@@ -1186,6 +1229,10 @@
       <details>
         <summary><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg>Log</summary>
         <pre id="log"></pre>
+      </details>
+      <details id="reflexes-open">
+        <summary><svg class="icon" aria-hidden="true"><use href="#i-live" /></svg>Reflexes</summary>
+        <div id="reflexes"></div>
       </details>
     </footer>
 

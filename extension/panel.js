@@ -4,6 +4,7 @@ import { runTool } from "./tools.js";
 import * as ui from "./transcript.js";
 import { fresh, pack, startNew, titleOf } from "./sessions.js";
 import { block as mentionBlock, label as mentionLabel } from "./mentions.js";
+import { initReflexes } from "./reflexes.js";
 import { block as filesBlock, humanSize, toBase64 } from "./attachments.js";
 
 // No token anywhere in here on purpose. The bridge identifies this panel by the
@@ -253,6 +254,17 @@ function send(payload) {
   return true;
 }
 
+// Reflexes: the sheet only draws the bridge's last message; Settle's shadow
+// measurements go back as log rows. A measurement made while disconnected is
+// dropped silently — it is a statistic, not worth a line in the transcript.
+const reflexes = initReflexes(document.getElementById("reflexes"), send);
+document.getElementById("reflexes-open").addEventListener("toggle", (e) => {
+  if (e.target.open && socket?.readyState === WebSocket.OPEN) send({ type: "reflex-status" });
+});
+cdp.onSettle((row) => {
+  if (socket?.readyState === WebSocket.OPEN) send({ type: "reflex-log", row: { reflex: "settle", ...row } });
+});
+
 function showGate({ id, action }) {
   pendingGateId = id;
   gateAction.textContent = action;
@@ -467,7 +479,12 @@ function connect() {
       return void drawFiles();
     }
     if (msg.type === "file-failed") return void ui.note(`could not attach — ${msg.error}`, true);
+    if (msg.type === "reflex-failed") return void ui.note(msg.error, true);
     if (msg.type === "gate") return void showGate(msg);
+    if (msg.type === "reflexes") {
+      cdp.setSettle(msg.settings.enabled ? msg.settings.settle.state : "off");
+      return void reflexes.apply(msg);
+    }
     // claude's reader subagent started or handed back: see forget() in cdp.js.
     if (msg.type === "forget") return void cdp.forget();
     if (msg.type === "task-event") {

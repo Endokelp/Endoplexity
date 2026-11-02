@@ -32,6 +32,8 @@ function reset() {
   sessions = new Map();
   refs = new Map();
   frameSeq = 0;
+  inflight.clear();
+  netLog = [];
 }
 
 // Bumped without clearing refs, so a ref minted before the page moved is still
@@ -64,10 +66,16 @@ function setupSession(sessionId) {
     flatten: true,
   }).catch((err) => console.warn(`endo: setAutoAttach failed on ${sessionId || "main"}`, err));
   send(sessionId, "Page.enable").catch(() => {});
+  // A new tab is a new debugger attachment: Network starts disabled again.
+  if (sessionId === MAIN && settleState !== "off") send(MAIN, "Network.enable").catch(() => {});
 }
 
 function onEvent(source, method, params) {
   if (source.tabId !== tabId) return;
+
+  // Settle's network half: main-frame session only. A frame's own traffic is its
+  // business and a chatty ad iframe would hold the page "busy" forever.
+  if (settleState !== "off" && !source.sessionId && method.startsWith("Network.")) trackNet(method, params);
 
   if (method === "Target.attachedToTarget") {
     const { sessionId, targetInfo } = params;
@@ -92,6 +100,7 @@ function onEvent(source, method, params) {
     const frame = sessions.get(source.sessionId ?? MAIN);
     if (frame) frame.url = params.frame.url;
     invalidate("navigation");
+    if (!source.sessionId) inflight.clear();
   }
 }
 
@@ -349,6 +358,157 @@ export async function useTab(id, url, options) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/*
+ * Settle: "the page stopped changing", measured instead of guessed.
+ *
+ * State is "off" (the fixed wait below, untouched: no Network.enable, no
+ * evaluate), "shadow" (same timing as off, but measured alongside so the bridge
+ * can log how often the guess would have been right) or "act" (wait for quiet).
+ * Quiet means no DOM mutation and no main-frame request in flight for QUIET_MS.
+ */
+let settleState = "off";
+let onSettleFn = null;
+const inflight = new Set(); // main-frame requestIds not yet finished
+let netLog = []; // [{ t, kind }] for settledAt(); only kept while not off
+let lastNetT = 0;
+const QUIET_MS = 100;
+const NO_NET = /^(WebSocket|EventSource)$/; // long-lived by design: never "idle"
+
+export const onSettle = (fn) => void (onSettleFn = fn);
+
+export function setSettle(state) {
+  const next = state === "shadow" || state === "act" ? state : "off";
+  const was = settleState;
+  settleState = next;
+  if (tabId === null || (was === "off") === (next === "off")) return;
+  send(MAIN, next === "off" ? "Network.disable" : "Network.enable").catch(() => {});
+  inflight.clear();
+  netLog = [];
+}
+
+function trackNet(method, params) {
+  const t = Date.now();
+  let kind;
+  if (method === "Network.requestWillBeSent" && !NO_NET.test(params.type ?? "")) {
+    inflight.add(params.requestId);
+    kind = "net-start";
+  } else if (method === "Network.loadingFinished" || method === "Network.loadingFailed") {
+    // Only ids we counted: a WebSocket's end must not read as a request ending.
+    if (!inflight.delete(params.requestId)) return;
+    kind = "net-end";
+  } else return;
+  lastNetT = t;
+  netLog.push({ t, kind });
+  if (netLog.length > 500) netLog.shift();
+}
+
+// Runs in the page. One observer, parked on a page-global under a name nothing
+// else uses; the array is capped so a page that mutates constantly costs memory
+// for 200 numbers, not a leak. Idempotent: a second call finds the first.
+const OBSERVE = `(() => {
+  const w = window;
+  if (!w.__endoSettle) {
+    const log = [];
+    const mo = new MutationObserver(() => { log.push(Date.now()); if (log.length > 200) log.shift(); });
+    mo.observe(document, { subtree: true, childList: true, characterData: true, attributes: true,
+      attributeFilter: ["aria-expanded", "aria-hidden", "aria-checked", "aria-selected", "aria-disabled", "disabled", "hidden", "open", "value", "checked"] });
+    w.__endoSettle = { log, mo };
+  }
+  return true;
+})()`;
+const LAST = "(window.__endoSettle?.log.at(-1) ?? 0)";
+// null, not [], when the observer is gone: the click navigated and this is a
+// new document, which says nothing about whether the old one went quiet.
+const COLLECT = `(() => {
+  const s = window.__endoSettle;
+  if (!s) return null;
+  s.mo.disconnect();
+  delete window.__endoSettle;
+  return s.log;
+})()`;
+
+async function evalMain(expression) {
+  const { result, exceptionDetails } = await send(MAIN, "Runtime.evaluate", { expression, returnByValue: true });
+  if (exceptionDetails) throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text);
+  return result.value;
+}
+
+/**
+ * The earliest time T in [t0 + quietMs, until] with no event in (T - quietMs, T]
+ * and no request in flight at T, or null. Events are { t, kind: "dom" | "net-start"
+ * | "net-end" }; a request already open at t0 is a "net-start" at t0.
+ *
+ * The only T worth testing are t0 + quietMs and each event's t + quietMs: between
+ * those the window cannot become quieter, so the earliest quiet T is one of them.
+ */
+export function settledAt(t0, events, quietMs, until) {
+  const candidates = [t0 + quietMs, ...events.map((e) => e.t + quietMs)].filter((T) => T >= t0 + quietMs && T <= until);
+  for (const T of candidates.sort((a, b) => a - b)) {
+    let open = 0;
+    let busy = false;
+    for (const e of events) {
+      if (e.t <= T && e.t > T - quietMs) busy = true;
+      if (e.t <= T) open += e.kind === "net-start" ? 1 : e.kind === "net-end" ? -1 : 0;
+    }
+    if (!busy && open <= 0) return T;
+  }
+  return null;
+}
+
+/** Did the page change (a DOM event) after T, up to `until`? Null T: nothing settled. */
+export const changedAfter = (T, events, until) =>
+  T !== null && events.some((e) => e.kind === "dom" && e.t > T && e.t <= until);
+
+// Shadow: the fixed wait stays exactly as it was; the measurement rides inside it.
+async function shadowSettle() {
+  let start;
+  try {
+    await evalMain(OBSERVE);
+    start = Date.now();
+  } catch {
+    return sleep(300); // measurement failed: behave as "off", report nothing
+  }
+  const open = [...inflight];
+  netLog = [];
+  await sleep(300);
+  try {
+    const dom = await evalMain(COLLECT);
+    // A navigation logged as "settled, nothing changed" would count as agreement.
+    if (dom === null) return;
+    const events = [
+      ...open.map(() => ({ t: start, kind: "net-start" })),
+      ...netLog.filter((e) => e.t >= start),
+      ...dom.map((t) => ({ t, kind: "dom" })),
+    ];
+    const until = start + 300;
+    const T = settledAt(start, events, QUIET_MS, until);
+    onSettleFn?.({ settledAt: T === null ? null : T - start, changedAfter: changedAfter(T, events, until), waited: 300 });
+  } catch {
+    // Navigation destroyed the context, or the evaluate threw: no report. Never the action's problem.
+  }
+}
+
+async function actSettle() {
+  const t0 = Date.now();
+  try {
+    await evalMain(OBSERVE);
+    // ponytail: 1000ms is the knob. Long enough for a React re-render or a fetch
+    // that fires on click, short enough that a page with a chatty poll (which
+    // never goes quiet) costs 700ms more than today's wait, not a hang.
+    for (;;) {
+      const now = Date.now();
+      const last = await evalMain(LAST);
+      if (inflight.size === 0 && now - Math.max(last, lastNetT, t0) >= QUIET_MS) break;
+      if (now - t0 >= 1000) break;
+      await sleep(25);
+    }
+    await evalMain(COLLECT);
+  } catch {
+    // Context gone or evaluate refused: the rest of the fixed wait, as if off.
+    await sleep(Math.max(0, 300 - (Date.now() - t0)));
+  }
+}
+
 /**
  * Let the page finish reacting before it gets read.
  *
@@ -359,7 +519,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * own 30s deadline in the relay that a hang here would burn.
  */
 async function settle() {
-  await sleep(300);
+  if (settleState === "act") await actSettle();
+  else if (settleState === "shadow") await shadowSettle();
+  else await sleep(300);
   const tab = await chrome.tabs.get(tabId);
   if (tab.status === "loading") await loaded(tabId, 10_000);
 }
