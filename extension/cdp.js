@@ -29,6 +29,7 @@ const send = (sessionId, method, params = {}) =>
 
 function reset() {
   tabId = null;
+  mainDoc = null;
   sessions = new Map();
   refs = new Map();
   frameSeq = 0;
@@ -52,6 +53,20 @@ function invalidate(why) {
 // live frame having a bad moment, and forgetting it would lose a real frame.
 const GONE = /session with given id|target closed/i;
 const dropIfDead = (sessionId, err) => sessionId !== MAIN && GONE.test(err.message) && sessions.delete(sessionId);
+
+/**
+ * The main frame's document now (its loaderId). A frame session belongs to the
+ * document that was current when it attached, and leaving a page does not end
+ * its frames at once: Chrome detaches them when it gets round to it. Until
+ * then every read listed them. Measured 2026-11-02: example.com read right
+ * after stackoverflow.com came back 1,902 characters, its own page being 25,
+ * the rest ad frames of the page it had left; the same dead sessions are the
+ * P17 timeout on leaving that site. Not deleted on navigation: going back
+ * restores a cached page with its frames still attached, under its old
+ * loaderId, and they count again.
+ */
+let mainDoc = null;
+const current = () => [...sessions].filter(([id, frame]) => id === MAIN || frame.doc === mainDoc);
 
 function setupSession(sessionId) {
   // Nested OOPIFs: each new session needs its own auto-attach or a frame two
@@ -83,7 +98,7 @@ function onEvent(source, method, params) {
     // accessibility tree, so registering them would put a permanent
     // "(frame unavailable)" line in every snapshot of any real site.
     if (targetInfo.type !== "iframe") return;
-    sessions.set(sessionId, { tag: `f${++frameSeq}`, url: targetInfo.url });
+    sessions.set(sessionId, { tag: `f${++frameSeq}`, url: targetInfo.url, doc: mainDoc });
     console.log(`endo: frame f${frameSeq} attached — ${targetInfo.url}`);
     setupSession(sessionId);
   }
@@ -100,7 +115,10 @@ function onEvent(source, method, params) {
     const frame = sessions.get(source.sessionId ?? MAIN);
     if (frame) frame.url = params.frame.url;
     invalidate("navigation");
-    if (!source.sessionId) inflight.clear();
+    if (!source.sessionId) {
+      inflight.clear();
+      mainDoc = params.frame.loaderId ?? null;
+    }
   }
 }
 
@@ -183,6 +201,9 @@ export async function attach(target, { open = true } = {}) {
   tabId = id;
   sessions.set(MAIN, { tag: "f0", url: "" });
   invalidate("attached");
+  // Before auto-attach, so the page's frames attach under the document they
+  // belong to rather than under none.
+  mainDoc = (await send(MAIN, "Page.getFrameTree").catch(() => null))?.frameTree?.frame?.loaderId ?? null;
   setupSession(MAIN);
 
   const tab = await chrome.tabs.get(id);
@@ -591,7 +612,7 @@ export async function snapshot(options) {
   const minted = new Map();
 
   const out = [];
-  for (const [sessionId, frame] of sessions) {
+  for (const [sessionId, frame] of current()) {
     // A frame that auto-attached before it had navigated was recorded with an
     // empty URL, and Page.frameNavigated cannot repair it: inside an OOPIF's own
     // session that event still carries a parentId, so the handler above skips it.
@@ -832,7 +853,7 @@ export async function key(name, options) {
 export async function upload(path, match, options) {
   requireAttached();
   const hits = [];
-  for (const [sessionId, frame] of sessions) {
+  for (const [sessionId, frame] of current()) {
     try {
       const { root } = await send(sessionId, "DOM.getDocument", { depth: 0 });
       const { nodeIds } = await send(sessionId, "DOM.querySelectorAll", {

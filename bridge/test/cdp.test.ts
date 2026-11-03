@@ -303,6 +303,31 @@ test("navigating away sends the new page whole, never as a patch", async () => {
   await cdp.detach();
 });
 
+// Leaving a page does not end its frames at once, and until Chrome detached
+// them every read listed them (P18, measured on stackoverflow.com). A page
+// back from the cache comes back with its frames still attached.
+test("a frame of the page the tab left is not read, and comes back with that page", async () => {
+  fail = () => null;
+  axNodes = () => [];
+  await cdp.attach(1);
+  onEvent({ tabId: 1 }, "Page.frameNavigated", { frame: { url: "https://ads.test/", loaderId: "A" } });
+  attachFrame("ad");
+  const readsAd = async () => {
+    calls.length = 0;
+    await cdp.snapshot();
+    return calls.some((call) => call.sessionId === "ad");
+  };
+  assert.equal(await readsAd(), true, "a frame of the page on screen is read");
+  // The frame's own navigation is not the main frame's: it stays.
+  onEvent({ tabId: 1, sessionId: "ad" } as never, "Page.frameNavigated", { frame: { url: "https://ads.test/2", loaderId: "C" } });
+  assert.equal(await readsAd(), true, "a frame navigating itself was taken for the page moving on");
+  onEvent({ tabId: 1 }, "Page.frameNavigated", { frame: { url: "https://example.test/", loaderId: "B" } });
+  assert.equal(await readsAd(), false, "the page the tab left still had its frame read");
+  onEvent({ tabId: 1 }, "Page.frameNavigated", { frame: { url: "https://ads.test/", loaderId: "A" } });
+  assert.equal(await readsAd(), true, "a page back from the cache lost its frame");
+  await cdp.detach();
+});
+
 test("an attachment a torn-down panel left behind is released, and DevTools' is not", async () => {
   await cdp.detach();
   // Seen live (P17): the panel was closed and reopened mid-task, and use_tab
