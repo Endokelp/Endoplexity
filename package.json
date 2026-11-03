@@ -12,7 +12,8 @@
     "bench": "node scripts/bench.ts",
     "test": "node --test \"bridge/test/**/*.test.ts\"",
     "laya-setup": "node scripts/laya-setup.mjs",
-    "test:laya": "node --test bridge/test/laya.live.ts"
+    "test:laya": "node --test bridge/test/laya.live.ts",
+    "reflex:train": "node scripts/reflex-train.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

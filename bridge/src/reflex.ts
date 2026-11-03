@@ -18,7 +18,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, unlinkSy
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { endpoint as layaEndpoint, status as layaStatus } from "./laya.ts";
+import { endpoint as layaEndpoint, layaModel, status as layaStatus } from "./laya.ts";
 
 export type State = "off" | "shadow" | "act";
 export type Backend = "lexical" | "laya" | "jev";
@@ -26,7 +26,8 @@ export type Reflex = "pick" | "gate" | "obstacle" | "settle" | "see";
 export type Question = { type: "choice"; instructions: string; criteria: Record<string, string> };
 export type Probs = Record<string, number>;
 export type Box = { top: number; bottom: number; left: number; right: number };
-export type Answer = { p?: Probs; choice: string | null; ms?: number; box?: Box };
+// `model`: which Laya checkpoint answered, once a fine-tune can replace the base.
+export type Answer = { p?: Probs; choice: string | null; ms?: number; box?: Box; model?: string };
 export type Row = {
   id: string;
   at: number;
@@ -348,13 +349,24 @@ export function fit(samples: { p: Probs; truth: string }[]): number {
  * for weeks. Split by count once the log is big enough to fill them.
  */
 export function temperature(backend: string, reflex: Reflex): number {
+  // A fine-tuned Laya is a different model: its temperature is fitted on its
+  // own answers only. Rows from before P19 carry no tag and came from the base.
+  const model = backend === "laya" ? layaModel() : undefined;
   return fit(
     rows.flatMap((r) => {
-      const p = r.reflex === reflex && r.truth !== undefined ? r.answers[backend]?.p : undefined;
+      const a = r.reflex === reflex && r.truth !== undefined ? r.answers[backend] : undefined;
+      const p = a && (!model || (a.model ?? "multilingual") === model) ? a.p : undefined;
       return p ? [{ p, truth: r.truth! }] : [];
     }),
   );
 }
+
+/**
+ * The distillation corpus: every decision a person or the model's next action
+ * answered, over an option the row actually asked about. `npm run reflex:train`.
+ */
+export const labelled = (): Row[] =>
+  rows.filter((r) => r.truth !== undefined && r.question && Object.hasOwn(r.question.criteria, r.truth));
 
 /** Act's rule: a calibrated answer that clears the threshold and the margin, or null (abstain). */
 export function decide(p: Probs, t = 1): { choice: string; p: number } | null {

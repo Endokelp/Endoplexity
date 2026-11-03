@@ -22,7 +22,7 @@ export const LAYA_VERSION = "0.4.21";
 // multilingual (mmBERT-base, 322M) over english (ModernBERT-large, 421M): about
 // twice as fast on this laptop's CPU in the spike (Gate 0.43 s against 0.95 s),
 // and 1,024 tokens of context instead of 512.
-const MODEL = "multilingual";
+const BASE = "multilingual";
 export const REPO = "convaiinnovations/laya-multilingual";
 // The Act budget. Shadow is not blocked on an answer and uses its own (reflex.ts).
 // ponytail: set from the Phase 16 spike; GPU and CPU differ by an order of
@@ -34,6 +34,12 @@ const home = () => process.env.ENDO_HOME ?? join(homedir(), ".endo");
 const venv = () => join(home(), "laya");
 const python = () => join(venv(), process.platform === "win32" ? "Scripts\\python.exe" : "bin/python");
 const pidFile = () => join(home(), "laya.pid");
+// What `npm run reflex:train` keeps when held-out agreement rose: this user's
+// own fine-tune of BASE, served under its own name in place of it.
+export const trainedDir = () => join(home(), "laya-trained");
+const TRAINED = "endo";
+/** The checkpoint the sidecar serves: the user's fine-tune when one was kept. */
+export const layaModel = () => (existsSync(join(trainedDir(), "rl_agent_config.json")) ? TRAINED : BASE);
 
 export type Endpoint = { base: string; key: string; model: string; budget: number };
 
@@ -80,6 +86,7 @@ async function boot(): Promise<Endpoint> {
   killStale();
   const port = await sparePort();
   const key = randomBytes(24).toString("hex");
+  const model = layaModel();
   // python -c, so the pid file names a python, which is what killStale checks
   // for. On Windows the venv's python.exe is a launcher with the real
   // interpreter as its child; killing the launcher took the server down with
@@ -92,8 +99,9 @@ async function boot(): Promise<Endpoint> {
       LAYA_API_KEY: key,
       // The reviewed Hugging Face commit laya pins for each checkpoint.
       LAYA_REVISION: "reviewed",
-      LAYA_MODELS: MODEL,
-      LAYA_DEFAULT_MODEL: MODEL,
+      LAYA_MODELS: model,
+      LAYA_DEFAULT_MODEL: model,
+      ...(model === TRAINED && { LAYA_EXTRA_MODELS: JSON.stringify({ [TRAINED]: trainedDir() }) }),
       LAYA_LOG_LEVEL: "warning",
       HF_HUB_DISABLE_TELEMETRY: "1",
     },
@@ -122,7 +130,7 @@ async function boot(): Promise<Endpoint> {
     const health = await fetch(`${base}/health`, { headers: auth, signal: AbortSignal.timeout(2_000) })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null);
-    if (Array.isArray(health?.loaded) && health.loaded.includes(MODEL)) break;
+    if (Array.isArray(health?.loaded) && health.loaded.includes(model)) break;
     if (Date.now() > deadline) throw new Error(`not ready after ${BOOT_MS / 1000}s`);
     await new Promise((r) => setTimeout(r, 1_000));
   }
@@ -141,12 +149,12 @@ async function boot(): Promise<Endpoint> {
   await fetch(`${base}/v1/systemone`, {
     method: "POST",
     headers: { "content-type": "application/json", ...auth },
-    body: JSON.stringify({ model: MODEL, state: "warm-up", questions: { q: { type: "choice", instructions: "Warm up?", criteria: { a: "Yes", b: "No" } } } }),
+    body: JSON.stringify({ model, state: "warm-up", questions: { q: { type: "choice", instructions: "Warm up?", criteria: { a: "Yes", b: "No" } } } }),
   }).catch(() => {});
 
   note = "";
-  ready = { base, key, model: MODEL, budget: BUDGET_MS };
-  console.log(`laya: ready on ${base} (${MODEL})`);
+  ready = { base, key, model, budget: BUDGET_MS };
+  console.log(`laya: ready on ${base} (${model})`);
   return ready;
 }
 

@@ -78,6 +78,7 @@ async function consult(row: Row, lexical: Probs, act: boolean): Promise<Decision
     // An abstention is logged too, choice null: it is how a budget that is too
     // tight for this machine shows up, and stats() leaves it out of agreement.
     row.answers[backend] = got ? { p: got.q, choice: argmax(got.q) } : { choice: null };
+    if (backend === "laya") row.answers[backend].model = p.model;
     row.answers[backend].ms = Math.round(performance.now() - t0);
   }
   record(row);

@@ -1,7 +1,7 @@
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type Server } from "node:http";
-import { mkdtempSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -10,6 +10,7 @@ import {
   decide,
   fit,
   initReflexes,
+  labelled,
   mark,
   needsLaya,
   panelState,
@@ -20,7 +21,7 @@ import {
 } from "../src/reflex.ts";
 import { acted, arrived, drop, gate, pick, see, seeSpent, resetSeeSpent, settled } from "../src/reflexes.ts";
 import { setPanel, dropPanel, settle } from "../src/relay.ts";
-import { endpoint } from "../src/laya.ts";
+import { endpoint, layaModel, trainedDir } from "../src/laya.ts";
 import { remember } from "../src/page.ts";
 
 // A fake systemone server on a spare port. `reply` decides each answer; every
@@ -404,3 +405,34 @@ test("a Vercel AI Gateway key reaches Jev under the gateway's model ids", async 
   }
 });
 
+// --------------------------------------------------------------- training
+
+test("the training corpus is only rows with a truth the row asked about", async () => {
+  reply = answering((k) => Object.fromEntries(k.map((x) => [x, x === "o2" ? 0.9 : 0.01])));
+  saveSettings({ pick: { state: "shadow", backend: "jev" }, jevAccepted: true });
+  remember("@f0e1 [button] \"Save\"\n@f0e2 [button] \"Submit\"");
+  pick("submit", [
+    { ref: "@f0e1", line: '@f0e1 [button] "Save"', p: 0.3 },
+    { ref: "@f0e2", line: '@f0e2 [button] "Submit"', p: 0.6 },
+  ]);
+  pick("save", [{ ref: "@f0e1", line: '@f0e1 [button] "Save"', p: 0.9 }]);
+  await until(() => seen.length === 2, "two Pick rows asked");
+  acted("@f0e2"); // the first row's o2; the second row never offered it
+  const rows = labelled();
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].truth, "o2");
+});
+
+test("Laya serves the user's fine-tune once one was kept, and the base otherwise", () => {
+  const was = process.env.ENDO_HOME;
+  process.env.ENDO_HOME = mkdtempSync(join(tmpdir(), "endo-laya-"));
+  try {
+    assert.equal(layaModel(), "multilingual");
+    mkdirSync(trainedDir(), { recursive: true });
+    writeFileSync(join(trainedDir(), "rl_agent_config.json"), "{}");
+    assert.equal(layaModel(), "endo");
+  } finally {
+    if (was === undefined) delete process.env.ENDO_HOME;
+    else process.env.ENDO_HOME = was;
+  }
+});
