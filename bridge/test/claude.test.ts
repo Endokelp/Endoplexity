@@ -2,13 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { claudeArgs, PRELOAD } from "../src/claude.ts";
+import { claudeArgs, PRELOAD, userLine } from "../src/claude.ts";
 
 // Spawn args are a security boundary — pin the ones that already bit us. These
 // read the argv that actually reaches spawn rather than regexing the source
 // that builds it: a misspelt flag is still perfectly valid source, and would
 // disable the boundary while a source-text test kept passing.
-const args = (resume?: string) => claudeArgs("do a thing", "sonnet", resume);
+const args = (resume?: string) => claudeArgs("claude-sonnet-5-5", resume);
 const valueOf = (argv: string[], flag: string) => argv[argv.indexOf(flag) + 1];
 
 const src = readFileSync(fileURLToPath(new URL("../src/claude.ts", import.meta.url)), "utf8");
@@ -43,8 +43,23 @@ test("--allowedTools stays last — it is variadic and swallows whatever follows
   assert.equal(argv.indexOf("--allowedTools"), argv.length - 2);
 });
 
-test("stdin is ignored so -p does not stall waiting for a pipe", () => {
-  assert.match(src, /stdio:\s*\[\s*"ignore"/);
+// The prompt and every mid-run message go down stdin as stream-json, so the
+// user's words and page titles never sit in a process listing.
+test("the prompt arrives on stdin as a stream-json user message, not in argv", () => {
+  assert.equal(valueOf(args(), "--input-format"), "stream-json");
+  assert.match(src, /stdio:\s*\[\s*"pipe"/);
+  const line = userLine('say "hi"\nthen stop');
+  assert.ok(line.endsWith("\n") && !line.slice(0, -1).includes("\n"), "one message must be one line");
+  assert.deepEqual(JSON.parse(line), { type: "user", message: { role: "user", content: 'say "hi"\nthen stop' } });
+});
+
+test("an overloaded model falls back to another claude model, never to itself", () => {
+  for (const model of ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"]) {
+    const argv = claudeArgs(model);
+    const fallback = valueOf(argv, "--fallback-model");
+    assert.match(fallback, /^claude-/);
+    assert.notEqual(fallback, valueOf(argv, "--model"));
+  }
 });
 
 test("a fresh task carries no --resume", () => {

@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { callPanel, askPanel, panelConnected } from "./relay.ts";
+import { callPanel, askPanel, panelConnected, sendPanel } from "./relay.ts";
 import { check, reads, rememberApproval, resetApprovals, type Mode } from "./gate.ts";
 import { remember, labelFor, labelsOf, find, hasPage } from "./page.ts";
 import { keys, resolve } from "./files.ts";
@@ -218,7 +218,43 @@ async function arrivalNote(): Promise<string> {
     : "";
 }
 
+/**
+ * What this task did, one line per action, for an engine taking over after a
+ * usage limit (failover.ts). Model calls and replayed steps both land here,
+ * through relayNow and batchNow. Typed values are left out: the page shows
+ * what a field holds, and a password has no place in a summary sent on to a
+ * second vendor.
+ * ponytail: the last 40 lines; a longer run hands over its tail.
+ */
+const ACTIONS = new Set(["navigate", "use_tab", "click", "type", "select", "key", "scroll", "hover", "upload", "back", "forward"]);
+const STEPS_KEPT = 40;
+let actions: string[] = [];
+let dropped = 0;
+export function resetSteps(): void {
+  actions = [];
+  dropped = 0;
+}
+export const steps = (): string[] => [...(dropped ? [`(${dropped} earlier steps not shown)`] : []), ...actions];
+
+/** `on` is what the step acted on, read before it ran: refs die with the page. */
+function logStep(name: string, on: string, outcome: string): void {
+  if (!ACTIONS.has(name)) return;
+  actions.push(`${actions.length + dropped + 1}. ${name}${on && ` ${on}`}: ${outcome.split("\n")[0].slice(0, 160)}`);
+  if (actions.length > STEPS_KEPT) (actions.shift(), dropped++);
+}
+const onWhat = (args: Record<string, unknown>): string => {
+  const label = typeof args.ref === "string" ? labelFor(args.ref) : undefined;
+  return String(label ?? args.url ?? args.name ?? args.direction ?? "").slice(0, 200);
+};
+
 async function relayNow(name: string, args: Record<string, unknown>, task: number): Promise<Result> {
+  const on = onWhat(args);
+  const res = await actNow(name, args, task);
+  logStep(name, on, res.isError ? res.content[0].text : "ok");
+  return res;
+}
+
+async function actNow(name: string, args: Record<string, unknown>, task: number): Promise<Result> {
   acted(args.ref);
   const denied = await gated(name, args);
   if (denied) return { content: [{ type: "text" as const, text: denied }], isError: true };
@@ -304,18 +340,22 @@ async function batchNow(steps: Step[], task: number): Promise<Result> {
       stopped = true;
       break;
     }
+    const on = onWhat(args);
     if (denied) {
       log.push(`${what}: ${denied}`);
+      logStep(name, on, denied);
       stopped = true;
       break;
     }
     try {
       const label = typeof args.ref === "string" ? labelFor(args.ref) : undefined;
       log.push(`${what}: ${await callPanel(name, { ...args, quiet: true }, label)}`);
+      logStep(name, on, "ok");
       track(name, args, at);
     } catch (err) {
       const { message, page: fresh } = err as Error & { page?: string };
       log.push(`${what}: error: ${message}`);
+      logStep(name, on, `error: ${message}`);
       page = fresh;
       stopped = true;
       break;
@@ -393,12 +433,25 @@ async function replayNow(id: string, raw: unknown, task: number): Promise<Replay
 // The page as it is at the end, for whoever carries on: the model reads it
 // instead of spending a turn on a snapshot.
 async function withPage(r: Replay): Promise<Replay> {
+  const page = await pageNow();
+  return page === undefined ? r : { ...r, page };
+}
+
+/**
+ * The page as it is now, whole, for a model that has read no page before it:
+ * one finishing a replay, or one taking over from another engine. A plain
+ * snapshot can come back as a patch against the last page the panel sent,
+ * which this model never saw, so the panel forgets that page first. Both go
+ * down the same socket in order, so the forget lands before the read.
+ */
+export async function pageNow(): Promise<string | undefined> {
   try {
+    sendPanel({ type: "forget" });
     const page = await callPanel("snapshot", {});
     remember(page);
-    return { ...r, page };
+    return page;
   } catch {
-    return r;
+    return undefined;
   }
 }
 

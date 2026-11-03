@@ -4,6 +4,7 @@ import { runTool } from "./tools.js";
 import * as ui from "./transcript.js";
 import { fresh, pack, startNew, titleOf } from "./sessions.js";
 import { block as mentionBlock, label as mentionLabel } from "./mentions.js";
+import { initEngines } from "./engines.js";
 import { initReflexes } from "./reflexes.js";
 import { initProposals, initSkills } from "./skills.js";
 import { block as filesBlock, humanSize, toBase64 } from "./attachments.js";
@@ -266,6 +267,9 @@ document.getElementById("reflexes-open").addEventListener("toggle", (e) => {
 cdp.onSettle((row) => {
   if (socket?.readyState === WebSocket.OPEN) send({ type: "reflex-log", row: { reflex: "settle", ...row } });
 });
+
+// The failover order, set from the Engines sheet once storage has been read.
+let fallbacks = [];
 
 // Skills and proposals are bridge state too: redrawn from the last message on
 // every connect, never journalled into the chat.
@@ -552,7 +556,12 @@ function setBusy(on) {
   // Never from a history view: the bridge holds one transcript, and it is the
   // live one — replying from an archived session would answer a different
   // conversation than the one on screen.
-  replyBtn.disabled = on || !resumable || viewing !== 0;
+  // While busy the Reply button steers the running agent instead.
+  replyBtn.disabled = on ? viewing !== 0 : !resumable || viewing !== 0;
+  replyBtn.title = on
+    ? "Send to the running agent: Enter"
+    : "Reply — ctrl+Enter. Answers the agent, keeping the last run's context";
+  replyBtn.setAttribute("aria-label", on ? "Send to the running agent: Enter" : "Reply");
   stopBtn.disabled = !on;
   // A new session while a task runs would leave the running task journalling
   // into it. Stop first.
@@ -584,7 +593,7 @@ async function runSkill(id, vars = {}) {
   said = [];
   await rebind(name);
   const page = await cdp.currentPage().catch(() => null);
-  if (!send({ type: "run-skill", id, vars, model: modelEl.value, mode: modeEl.value })) {
+  if (!send({ type: "run-skill", id, vars, model: modelEl.value, mode: modeEl.value, fallbacks })) {
     return setBusy(false);
   }
   ui.user(`Run skill: ${name}`);
@@ -662,7 +671,7 @@ async function runTask(resume = false) {
     .join("\n\n");
   // The model rides along, but the bridge overrules it on a reply: a claude
   // transcript cannot be handed to cursor-agent.
-  if (!send({ type: "task", task: prompt, prompt: sent, model: modelEl.value, mode: modeEl.value, resume })) {
+  if (!send({ type: "task", task: prompt, prompt: sent, model: modelEl.value, mode: modeEl.value, resume, fallbacks })) {
     return setBusy(false);
   }
   ui.user(prompt);
@@ -671,6 +680,15 @@ async function runTask(resume = false) {
   // worth re-running — but the task is already the heading of its own answer
   // two lines up, so what the box actually held was a stale copy sitting under
   // a live run, and the next task had to be typed around it.
+  promptEl.value = "";
+}
+
+/** A message for the agent mid-run: the raw typed text, no page line or files. */
+function steer() {
+  const text = promptEl.value.trim();
+  if (!text) return ui.note("type a message for the agent first");
+  if (!send({ type: "steer", text })) return;
+  ui.user(text);
   promptEl.value = "";
 }
 
@@ -697,7 +715,7 @@ toCurrentBtn.addEventListener("click", () => showSession(0));
 // Wrapped, not passed directly — a listener is handed the MouseEvent, which as
 // runTask's first argument would make every click a reply.
 runBtn.addEventListener("click", () => runTask());
-replyBtn.addEventListener("click", () => runTask(true));
+replyBtn.addEventListener("click", () => (runBtn.disabled ? steer() : runTask(true)));
 stopBtn.addEventListener("click", () => {
   ui.note("stopping");
   send({ type: "stop" });
@@ -1012,12 +1030,17 @@ promptEl.addEventListener("keydown", (event) => {
   const resume = event.ctrlKey || event.metaKey;
   // Only guarded for a fresh run — a ctrl+Enter with nothing to reply to falls
   // through to runTask, which says so rather than swallowing the keystroke.
-  if (!resume && runBtn.disabled) return;
   event.preventDefault();
+  // While a task runs, Enter talks to the agent instead of being ignored.
+  if (runBtn.disabled) return steer();
   runTask(resume);
 });
 
-const stored = await chrome.storage.local.get(["model", "mode", "sessions"]);
+const stored = await chrome.storage.local.get(["model", "mode", "sessions", "fallbacks"]);
+fallbacks = initEngines(document.getElementById("engines"), modelEl, stored.fallbacks, (order) => {
+  fallbacks = order;
+  chrome.storage.local.set({ fallbacks });
+}).order();
 // Only a model the dropdown still offers. Assigning one it does not (`sonnet`,
 // from before the ids were spelled out) leaves the <select> on no option at all,
 // so every Run would send "" and be refused as an unknown model.

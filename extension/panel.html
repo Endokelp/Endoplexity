@@ -911,7 +911,7 @@
       footer details[open] summary { color: var(--text); }
       /* The disclosure opens as a sheet above the composer, so the summary row
          never jumps and the transcript is never pushed off screen. */
-      #log, #history, #reflexes, #skills {
+      #log, #history, #reflexes, #skills, #engines {
         position: fixed;
         left: 12px;
         right: 12px;
@@ -937,7 +937,7 @@
       }
 
       /* The Reflexes sheet: the History sheet's frame, in the UI font. */
-      #reflexes, #skills {
+      #reflexes, #skills, #engines {
         max-height: 60vh;
         overflow: auto;
         font-family: var(--sans);
@@ -947,6 +947,8 @@
         scrollbar-width: thin;
         scrollbar-color: var(--line) transparent;
       }
+      #engines p { margin: 0 0 6px; font-size: var(--t-micro); color: var(--text-soft); }
+      #engines select { max-width: none; flex: 0 1 auto; border-color: var(--line-soft); }
       #reflexes select { max-width: none; flex: 0 1 auto; border-color: var(--line-soft); }
       #reflexes input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
       .rx-switch { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: var(--t-ui); font-weight: 560; cursor: pointer; }
@@ -1290,6 +1292,10 @@
       <details id="reflexes-open">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-live" /></svg>Reflexes</summary>
         <div id="reflexes"></div>
+      </details>
+      <details id="engines-open">
+        <summary><svg class="icon" aria-hidden="true"><use href="#i-reply" /></svg>Engines</summary>
+        <div id="engines"></div>
       </details>
       <details id="skills-open">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Skills</summary>

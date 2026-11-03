@@ -187,14 +187,24 @@ export function writeMcpConfig(port: number, token: string): string {
  * Deliberately NOT `--bare`, which also skips hooks but forces auth to
  * ANTHROPIC_API_KEY — the whole point here is to run on an existing subscription.
  */
-export const claudeArgs = (prompt: string, model: string, resume?: string): string[] => [
+export const claudeArgs = (model: string, resume?: string): string[] => [
+  // No prompt here: it arrives on stdin (runClaude), the channel a message
+  // typed mid-run also comes down. It also keeps page titles and the user's
+  // words out of argv, which any process listing on the machine shows.
   "-p",
-  prompt,
+  "--input-format",
+  "stream-json",
   // Sonnet is the default the panel offers: browser driving is
   // snapshot-read-click, not hard reasoning, and the earlier Opus runs billed
   // ~20x for it. index.ts allowlists what may arrive here.
   "--model",
   model,
+  // claude's own answer to an overloaded model: the turn retries on another,
+  // and the next user turn goes back to the first. A usage limit is not this:
+  // measured with it set, a model refused for credits still ended the run, so
+  // limits stay failover.ts's.
+  "--fallback-model",
+  model === "claude-sonnet-5-5" ? "claude-haiku-5-5" : "claude-sonnet-5-5",
   // Before --allowedTools, which is variadic and swallows whatever follows it.
   ...(resume ? ["--resume", resume] : []),
   "--output-format",
@@ -240,6 +250,31 @@ function forget(): void {
   fetch(url, { method: "POST" }).catch(() => {});
 }
 
+/** A running CLI. `steer` reaches it mid-run where the CLI can take that: claude only. */
+export type Run = ChildProcess & { steer?: (text: string) => boolean };
+
+/** One user message in `--input-format stream-json`. */
+export const userLine = (text: string) => `${JSON.stringify({ type: "user", message: { role: "user", content: text } })}\n`;
+
+/**
+ * What an event says went wrong, in claude's words, or null. A refused
+ * request is a synthetic assistant message carrying `error` (`rate_limit` for
+ * a usage limit, test/fixtures/claude-limit.jsonl), then an `is_error` result
+ * with the same text; stderr stays empty and the exit code is 1, so without
+ * this the panel said only "claude exited 1".
+ */
+export function errorIn(event: Record<string, unknown>): { text: string; limit: boolean } | null {
+  if (event.type === "assistant" && typeof event.error === "string") {
+    const content = (event.message as { content?: unknown } | undefined)?.content;
+    const text = Array.isArray(content) ? content.map((c) => (c as { text?: unknown })?.text ?? "").join("") : "";
+    return { text: text || event.error, limit: event.error === "rate_limit" };
+  }
+  if (event.type === "result" && event.is_error === true && typeof event.result === "string") {
+    return { text: event.result, limit: event.api_error_status === 429 };
+  }
+  return null;
+}
+
 /**
  * Spawn `claude -p` with browser tools and nothing else. Pass `resume` to
  * continue a previous run's transcript rather than starting a fresh one.
@@ -252,23 +287,36 @@ export function runClaude(
   model: string,
   onEvent: (event: Record<string, unknown>) => void,
   resume?: string,
-): ChildProcess {
+): Run {
   const child = spawn(
     "claude",
-    claudeArgs(prompt, model, resume),
+    claudeArgs(model, resume),
     // Somewhere with no CLAUDE.md, belt to --setting-sources' braces.
-    // stdin ignored: -p otherwise waits 3s for piped input that never comes.
     // Background tasks off: a backgrounded reader would drive the tab while the
     // main model does. Measured: with this set, `run_in_background` leaves the
     // Agent schema and a reader asked to run in the background ran in front.
     {
       cwd: tmpdir(),
       windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
       env: { ...process.env, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1" },
     },
   );
 
+  // The prompt, and then whatever the user types while the run goes. Measured
+  // 2026-11-02 (claude 2.1.280): a message written mid-turn reaches the model
+  // at its next tool result, inside the same turn, and it changed course there.
+  // A pipe to a child that has exited errors, and an unheard stream error
+  // takes the whole bridge down.
+  child.stdin.on("error", () => {});
+  child.stdin.write(userLine(prompt));
+  const steer = (text: string) => {
+    if (child.stdin.writableEnded || child.stdin.destroyed) return false;
+    child.stdin.write(userLine(text));
+    return true;
+  };
+
+  let failure: { text: string; limit: boolean } | null = null;
   // readline does the line framing — NDJSON arrives split across chunks.
   createInterface({ input: child.stdout }).on("line", (line) => {
     if (!line.trim()) return;
@@ -277,8 +325,14 @@ export function runClaude(
     // `null` line used to reach sessionOf() and kill the whole bridge.
     let event;
     try { event = JSON.parse(line); } catch {}
-    if (event?.type === "system" && (event.subtype === "task_started" || event.subtype === "task_notification")) forget();
-    onEvent(event && typeof event === "object" ? event : { type: "stray", text: line });
+    if (!event || typeof event !== "object") return onEvent({ type: "stray", text: line });
+    if (event.type === "system" && (event.subtype === "task_started" || event.subtype === "task_notification")) forget();
+    failure = errorIn(event) ?? failure;
+    // stdin open is claude waiting for the next message. A result with nothing
+    // queued behind it is the run's end, so close it and let claude exit; a
+    // message it already queued is in the pipe ahead of the close.
+    if (event.type === "result" && !event.queued_turn_count) child.stdin.end();
+    onEvent(event);
   });
 
   let stderr = "";
@@ -287,8 +341,13 @@ export function runClaude(
     onEvent({ type: "failed", error: `could not start claude: ${err.message}` }),
   );
   child.on("close", (code) =>
-    onEvent({ type: "done", code, ...(code === 0 ? {} : { error: stderr.trim() || `claude exited ${code}` }) }),
+    onEvent({
+      type: "done",
+      code,
+      ...(code === 0 && !failure ? {} : { error: failure?.text || stderr.trim() || `claude exited ${code}` }),
+      ...(failure?.limit ? { limit: true } : {}),
+    }),
   );
 
-  return child;
+  return Object.assign(child, { steer });
 }

@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import type { ChildProcess } from "node:child_process";
 import { WebSocketServer, type WebSocket } from "ws";
 import { authorize, authorizeMcp, ALLOWED_ORIGIN } from "./auth.ts";
-import { handleMcp, report, runSkill, setMode, stop } from "./mcp.ts";
+import { handleMcp, pageNow, report, resetSteps, runSkill, setMode, steps, stop } from "./mcp.ts";
+import { cleanOrder, handoffPrompt, limitOf, nextEngine } from "./failover.ts";
 import {
   answer,
   begin,
@@ -18,13 +19,13 @@ import {
   remove as removeSkill,
 } from "./skills.ts";
 import { setPanel, dropPanel, settle, settleGate, sendPanel } from "./relay.ts";
-import { writeMcpConfig } from "./claude.ts";
+import { writeMcpConfig, type Run } from "./claude.ts";
 import { writeCursorConfig } from "./cursor.ts";
 import { writeCodexConfig } from "./codex.ts";
 import { MODELS } from "./models.ts";
 import { attach, detach, list as listFiles } from "./files.ts";
 import { clearLog, initReflexes, mark, needsLaya, onChange, panelState, saveSettings, writeJevKey } from "./reflex.ts";
-import { settled } from "./reflexes.ts";
+import { settled, where } from "./reflexes.ts";
 import { startLaya, stopLaya } from "./laya.ts";
 
 const HOST = "127.0.0.1"; // never 0.0.0.0 — this socket can drive a logged-in browser
@@ -125,7 +126,25 @@ http.on("upgrade", (req, socket, head) => {
 
 // One task at a time. Two agents driving one tab would fight over every ref.
 // A CLI, or a skill replaying with no CLI (whose Stop is mcp.ts's epoch).
-let running: Pick<ChildProcess, "kill"> | null = null;
+let running: (Pick<ChildProcess, "kill"> & Pick<Run, "steer">) | null = null;
+let runningModel = "";
+
+/**
+ * Phase 18's state for the task under way, reset by a fresh one.
+ *  - `asked`: the task as sent, then each reply and mid-run message, in the
+ *    user's words. An engine taking over after a limit is sent all of it.
+ *  - `queued`: mid-run messages no CLI has read yet. cursor and codex take no
+ *    input mid-run, and claude stops reading once its run ends, so these go in
+ *    a resume the moment the run is over.
+ *  - `order` / `spent`: the user's failover order, and the engines that ran
+ *    out on this task.
+ *  - `stopping`: the human pressed Stop, so nothing carries the run on.
+ */
+let asked: string[] = [];
+let queued: string[] = [];
+let order: string[] = [];
+let spent: string[] = [];
+let stopping = false;
 
 /**
  * The transcript the next task can pick up, or null if there is nothing to pick
@@ -176,7 +195,16 @@ const usedTools = (event: Record<string, unknown>) => {
 function startTask(
   prompt: unknown,
   model: unknown,
-  { isRetry = false, resume = false, words = undefined as unknown, handoff = false } = {},
+  {
+    isRetry = false,
+    resume = false,
+    words = undefined as unknown,
+    handoff = false,
+    asking = undefined as string | undefined,
+    takeover = false,
+    steered = false,
+    fallbacks = undefined as unknown,
+  } = {},
 ) {
   // Resolved at call time, never captured. A panel that drops and comes back
   // mid-run gets a different socket; a captured one would keep sending into
@@ -203,9 +231,19 @@ function startTask(
   // id, so a spawn that dies early cannot leave the previous session looking live.
   if (!resuming) session = null;
   // The trace a skill is saved from. A reply is the same piece of work, a retry
-  // is a run that did nothing, and a hand-off finishes a replay whose steps are
-  // already in it: only a fresh task starts one.
-  if (!resuming && !isRetry && !handoff) begin(typeof words === "string" && words.trim() ? words : prompt);
+  // is a run that did nothing, and a hand-off finishes a replay (or another
+  // engine's run) whose steps are already in it: only a fresh task starts one.
+  if (!resuming && !isRetry && !handoff && !takeover) begin(typeof words === "string" && words.trim() ? words : prompt);
+  // Phase 18's state follows the same rule. A skill's hand-off keeps the
+  // replay's steps; a delivered message is already in `asked`.
+  if (!resuming && !isRetry && !takeover) {
+    asked = [asking ?? prompt];
+    queued = [];
+    spent = [];
+    if (!handoff) resetSteps();
+  } else if (resuming && !steered) asked.push(`Then the user replied:\n${prompt}`);
+  if (!isRetry && !takeover && !steered) stopping = false;
+  if (fallbacks !== undefined) order = cleanOrder(fallbacks);
 
   console.log(`${resuming ? "reply" : "task"} (${chosen}): ${prompt}`);
   let sawTool = false;
@@ -217,7 +255,8 @@ function startTask(
     // reported a failed start twice: two red notes, and the end of the run
     // handled twice. One guard here rather than one per adapter.
     if (ended) return;
-    if (event.type === "done" || event.type === "failed") ended = true;
+    const terminal = event.type === "done" || event.type === "failed";
+    if (terminal) ended = true;
     const id = sessionOf(event);
     if (id) session = { id, model: chosen };
     if (usedTools(event)) sawTool = true;
@@ -231,13 +270,19 @@ function startTask(
     // Only worth retrying a run that did nothing: once a real tool call has
     // landed, the same text pattern is the agent quoting itself, not faking.
     if (event.type === "result" && !sawTool && !isRetry && sawFake) redo = true;
-    if (event.type === "done" || event.type === "failed") running = null;
+    if (terminal) running = null;
+    // Whether this end carries the task on, decided before anything treats it
+    // as over: a usage limit goes to the next engine on another CLI, and a
+    // message the CLI could not read mid-run goes in as a reply.
+    const limit = terminal && !redo && !stopping ? limitOf(event) : null;
+    const next = limit ? nextEngine(order, [...spent, chosen]) : null;
+    const deliver = terminal && !redo && !next && !stopping && !event.error && queued.length > 0 && session !== null;
     // A clean end offers the run as a skill, or a healed replay's change to
-    // one. Not for the void run a retry replaces.
-    if ((event.type === "done" || event.type === "failed") && !redo) finish(event.type === "done" && !event.error);
+    // one. Not for the void run a retry replaces, nor for a task carrying on.
+    if (terminal && !redo && !next && !deliver) finish(event.type === "done" && !event.error);
     // Anything of this task's still in the bridge (a batch mid-way, a queued
     // call) belongs to a CLI that is gone.
-    if (event.type === "done" || event.type === "failed") stop();
+    if (terminal) stop();
     // Untruncated, because this is the one line that settles "did the agent
     // actually have the tools" — a model that emits fake <function_calls> XML as
     // text looks identical in the panel to one whose tools are missing.
@@ -250,24 +295,76 @@ function startTask(
     }
     console.log(`  ${JSON.stringify(event).slice(0, 200)}`);
 
-    // The panel offers Reply off this flag, so it rides on the event that turns
-    // the buttons back on rather than arriving as a message of its own. A run
-    // killed by Stop is resumable too — that is the point, not an oversight.
-    if (!redo) {
-      const terminal = event.type === "done" || event.type === "failed";
-      return send(terminal ? { ...event, resumable: session !== null } : event);
-    }
     // Swallow the void run entirely, then respawn once the child is actually
     // gone. The panel stays busy throughout, so this reads as one slow task.
-    if (event.type === "done" || event.type === "failed") {
+    if (redo) {
+      if (!terminal) return;
       send({ type: "retry", reason: "the agent wrote its tool calls as text instead of calling them — retrying once" });
       // Never resumed: the point of the retry is to discard a transcript whose
       // only content is faked tool calls.
-      startTask(prompt, chosen, { isRetry: true });
+      return startTask(prompt, chosen, { isRetry: true });
     }
+    if (!terminal) return send(event);
+    // The two ways on keep the panel busy too: no terminal event reaches it.
+    if (next) {
+      spent.push(chosen);
+      return void takeOver(chosen, next, limit!);
+    }
+    if (deliver) {
+      const text = queued.join("\n\n");
+      queued = [];
+      send({ type: "handoff", reason: `the run ended before ${chosen} could read your message, so it goes in as a reply` });
+      return startTask(text, chosen, { resume: true, steered: true });
+    }
+    if (queued.length) {
+      sendPanel({ type: "note", text: `your message reached no agent: the run ${stopping ? "was stopped" : "ended with an error"}. Reply to send it.` });
+      queued = [];
+    }
+    // The panel offers Reply off this flag, so it rides on the event that turns
+    // the buttons back on rather than arriving as a message of its own. A run
+    // killed by Stop is resumable too — that is the point, not an oversight.
+    const end = limit ? { ...event, error: `${limit} (no engine on another CLI is set to take over: see Engines)` } : event;
+    return send({ ...end, resumable: session !== null });
   };
 
+  runningModel = chosen;
   running = MODELS[chosen](prompt, chosen, onEvent, resuming?.id);
+}
+
+/**
+ * The engine running `from` hit its usage limit: the task goes to `to`, fresh,
+ * on the same tab, with what was asked, what was done and the page as it is.
+ * The panel stays busy throughout, as for a retry.
+ */
+async function takeOver(from: string, to: string, why: string) {
+  const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", event });
+  console.log(`usage limit on ${from} (${why}): ${to} takes over`);
+  send({ type: "handoff", reason: `${from} hit its usage limit (${why}). ${to} carries on, on the same tab.` });
+  // Held while the page is read, so a Stop has something to stop and no second
+  // task can start in the gap.
+  let dropped = false;
+  running = { kill: () => (dropped = true) };
+  const at = await where();
+  const page = await pageNow();
+  running = null;
+  if (dropped || stopping) return send({ type: "done", resumable: session !== null });
+  // Messages the old engine never read are in `asked` already.
+  queued = [];
+  startTask(handoffPrompt({ from, asked, steps: steps(), where: at.url ? at : null, page }), to, { takeover: true });
+}
+
+/**
+ * A message the user typed while a task runs. claude reads it mid-turn off
+ * stdin; cursor and codex take nothing mid-run, so it waits for the run's end
+ * and goes in as a reply.
+ */
+function steer(text: unknown) {
+  if (typeof text !== "string" || !text.trim()) return;
+  if (!running) return void sendPanel({ type: "note", text: "nothing is running: Run or Reply to send it" });
+  asked.push(`While it ran, the user said: ${text}`);
+  if (running.steer?.(text)) return void sendPanel({ type: "note", text: `sent to the running agent (${runningModel})` });
+  queued.push(text);
+  sendPanel({ type: "note", text: `queued: ${runningModel || "the agent"} reads it when this run ends` });
 }
 
 /**
@@ -276,7 +373,7 @@ function startTask(
  * has selected, as a fresh task; when that run ends well, finish() offers the
  * user the change to the skill.
  */
-async function startSkill(id: unknown, vars: unknown, model: unknown) {
+async function startSkill(id: unknown, vars: unknown, model: unknown, fallbacks: unknown) {
   const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", event });
   if (running) return send({ type: "failed", error: "a task is already running — stop it first" });
   // Checked before anything runs: the hand-off needs a model to go to.
@@ -293,16 +390,26 @@ async function startSkill(id: unknown, vars: unknown, model: unknown) {
   // conversation before it, which knows nothing of these steps.
   session = null;
   begin(task);
+  resetSteps();
+  queued = [];
+  spent = [];
+  stopping = false;
+  order = cleanOrder(fallbacks);
   console.log(`skill: ${id}`);
   const t0 = Date.now();
   // Stop reaches a replay through mcp.ts's epoch, which index.ts's stop
   // handler bumps before it calls this.
   running = { kill: () => true };
+  runningModel = "";
   const r = await runSkill(String(id), vars);
   running = null;
   console.log(`  ${report({ ...r, page: undefined })}`);
+  // Typed while the replay ran, which reads nothing: the model taking over
+  // reads it, and with no model it reaches nobody.
+  const said = queued.splice(0);
   if (!r.stop || r.stop.final) {
     if (!r.stop) send({ type: "result", result: `Replayed all ${r.of} steps of "${r.skill?.name}", with no model.`, num_turns: 0, duration_ms: Date.now() - t0 });
+    if (said.length) sendPanel({ type: "note", text: "your message reached no agent: a replay reads nothing. Run it as a task to send it." });
     send({ type: "done", resumable: false, ...(r.stop && { error: report(r) }) });
     finish(!r.stop);
     return stop();
@@ -311,8 +418,15 @@ async function startSkill(id: unknown, vars: unknown, model: unknown) {
   // The skill's task is the one place its file reaches a prompt as a task: the
   // user just chose to run it. Everything else in the hand-off is framed as
   // page content by report().
-  const prompt = `You are finishing a saved skill the user just ran, "${r.skill?.name}". Its task, as recorded when it was saved: ${task}\n\n${report(r)}`;
-  startTask(prompt, model, { handoff: true });
+  const told = (page: string | undefined) =>
+    [
+      `You are finishing a saved skill the user just ran, "${r.skill?.name}". Its task, as recorded when it was saved: ${task}`,
+      report({ ...r, page }),
+      ...(said.length ? [`While the replay ran, the user said:\n${said.join("\n")}`] : []),
+    ].join("\n\n");
+  // Asked without the page: an engine taking over after a limit gets the page
+  // as it is by then, and was sent this one as well (seen live, P18).
+  startTask(told(r.page), model, { handoff: true, asking: told(undefined) });
 }
 
 /**
@@ -373,12 +487,15 @@ wss.on("connection", (ws) => {
       // the bridge. It is never in a prompt and the model never sees it, so
       // nothing the agent says can widen its own permissions.
       setMode(msg.mode);
-      startTask(msg.prompt, msg.model, { resume: msg.resume === true, words: msg.task });
+      // The failover order is the human's too, and failover.ts admits only
+      // models MODELS knows, so it can name no binary the dropdown cannot.
+      startTask(msg.prompt, msg.model, { resume: msg.resume === true, words: msg.task, fallbacks: msg.fallbacks ?? [] });
     } else if (msg.type === "run-skill") {
       // Same rule as a task: the mode is the human's and arrives with the run.
       if (!running) setMode(msg.mode);
-      void startSkill(msg.id, msg.vars, msg.model);
-    } else if (msg.type === "proposal-reply") {
+      void startSkill(msg.id, msg.vars, msg.model, msg.fallbacks);
+    } else if (msg.type === "steer") steer(msg.text);
+    else if (msg.type === "proposal-reply") {
       // Writes only what the bridge holds for that id; `name` is a skill's
       // file name, which skills.ts reduces to [a-z0-9-].
       try {
@@ -441,6 +558,7 @@ wss.on("connection", (ws) => {
       pushReflexes();
     } else if (msg.type === "stop") {
       // Killing the CLI stops its next call, not a batch already in the bridge.
+      stopping = true;
       stop();
       running?.kill();
     }

@@ -1,0 +1,6 @@
+Error: You've hit your usage limit
+You've saved xx on API model usage this month with Pro. Switch to Auto for more usage or set a Spend Limit to continue with Sonnet. Your usage limits will reset when your monthly cycle ends on 8/14/2025.
+
+b: Increase limits for faster responses You're out of usage. Switch to Auto, or ask your admin to increase your limit to continue.
+
+b: Increase limits for faster responses claude-4.6-opus-high-thinking is not available in the slow pool. Please switch to Auto.
