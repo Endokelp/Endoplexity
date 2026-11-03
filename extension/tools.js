@@ -44,6 +44,10 @@ const TOOLS = {
   // The gate's own read, never offered to the model (mcp.ts registers no such
   // tool): what the element about to be clicked is, right now.
   label: ({ ref }) => cdp.labelOf(ref),
+  // See's two internal calls, never offered to the model (mcp.ts registers no
+  // such tool): the bridge's `find` asks for a screenshot, then for a point.
+  screenshot: () => cdp.screenshot().then(JSON.stringify),
+  point: ({ x, y, query }) => cdp.point(x, y, query),
   use_tab: ({ id, url, full }) => cdp.useTab(id, url, { full }),
 };
 

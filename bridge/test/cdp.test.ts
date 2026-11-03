@@ -20,7 +20,9 @@ const DEAD = "Session with given id not found.";
 /** Set per test: which (session, method) pairs blow up, and with what. */
 let fail: (sessionId: string, method: string) => string | null = () => null;
 /** Every sendCommand, so a reaped session can be shown to cost nothing later. */
-const calls: { sessionId: string; method: string }[] = [];
+const calls: { sessionId: string; method: string; params?: unknown }[] = [];
+/** Set per test: answers for specific methods; undefined falls through to the defaults. */
+let reply: (method: string) => unknown = () => undefined;
 let onEvent: Handler = () => {};
 /** Set per test: what the window has open, and whether anyone opened a tab. */
 let openTabs = [{ id: 1, url: "https://example.test/", active: true }];
@@ -46,11 +48,13 @@ const held = new Map<number, "ours" | "devtools">();
       if (held.get(tabId) === "devtools") throw new Error(`Debugger is not attached to the tab with id: ${tabId}.`);
       held.delete(tabId);
     },
-    sendCommand: async (target: { sessionId?: string }, method: string) => {
+    sendCommand: async (target: { sessionId?: string }, method: string, params?: unknown) => {
       const sessionId = target.sessionId ?? "";
-      calls.push({ sessionId, method });
+      calls.push({ sessionId, method, params });
       const message = fail(sessionId, method);
       if (message) throw new Error(message);
+      const answer = reply(method);
+      if (answer !== undefined) return answer;
       return method === "Accessibility.getFullAXTree" ? { nodes: axNodes() } : {};
     },
     onEvent: { addListener: (fn: Handler) => (onEvent = fn) },
@@ -353,4 +357,112 @@ test("attaching turns on focus emulation, so a page behind other windows still d
     "the main session must be told to emulate focus on attach",
   );
   await cdp.detach();
+});
+
+// See: the panel half. A viewport position, not a node, so these pin the
+// contract the rest depends on: capture only when On, dispatch on MAIN with no
+// box model, and the gate's label naming what is really under the point.
+const VIEW = {
+  cssLayoutViewport: { clientWidth: 800, clientHeight: 600 },
+  cssVisualViewport: { clientWidth: 800, clientHeight: 600, pageX: 0, pageY: 0 },
+};
+const seeReplies = (extra: Record<string, unknown> = {}) =>
+  (reply = (method) => (method === "Page.getLayoutMetrics" ? VIEW : extra[method]));
+
+test("See off: screenshot refuses, and nothing is captured", async () => {
+  fail = () => null;
+  seeReplies();
+  await cdp.attach(1);
+  cdp.setSee("off");
+  calls.length = 0;
+  await assert.rejects(cdp.screenshot(), /See is off/);
+  cdp.setSee("bogus");
+  assert.equal(cdp.getSee(), "off", "anything but act is off");
+  assert.ok(!calls.some((c) => c.method === "Page.captureScreenshot"), "no capture while off");
+  await cdp.detach();
+});
+
+test("See on: screenshot returns the jpeg, its size, and the viewport", async () => {
+  fail = () => null;
+  // 1x1 jpeg SOF only: enough for jpegSize, which is all that reads it.
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 1, 144, 2, 128, 1, 0, 0, 0xff, 0xd9]);
+  seeReplies({ "Page.captureScreenshot": { data: jpeg.toString("base64") } });
+  await cdp.attach(1);
+  cdp.setSee("act");
+  const shot = await cdp.screenshot();
+  assert.deepEqual([shot.width, shot.height, shot.viewport], [640, 400, { width: 800, height: 600 }]);
+  const cap = calls.find((c) => c.method === "Page.captureScreenshot");
+  // Clipped to the viewport the point is mapped in, or the scrollbar skews x.
+  assert.deepEqual(cap?.params, { format: "jpeg", quality: 80, clip: { x: 0, y: 0, width: 800, height: 600, scale: 1 } });
+  cdp.setSee("off");
+  await cdp.detach();
+});
+
+test("a point ref clicks on MAIN at its point, with no box model", async () => {
+  fail = () => null;
+  seeReplies();
+  await cdp.attach(1);
+  const ref = await cdp.point(120, 130, "  the red circle ");
+  assert.match(ref, /^@p\d+$/);
+  calls.length = 0;
+  await cdp.click(ref, { quiet: true });
+  assert.ok(!calls.some((c) => c.method === "DOM.getBoxModel" || c.method === "DOM.scrollIntoViewIfNeeded"));
+  const mouse = calls.filter((c) => c.method === "Input.dispatchMouseEvent");
+  assert.equal(mouse.length, 3);
+  for (const m of mouse) {
+    assert.equal(m.sessionId, "", "MAIN");
+    assert.deepEqual([(m.params as { x: number }).x, (m.params as { y: number }).y], [120, 130]);
+  }
+  assert.notEqual(await cdp.point(1, 1, "x"), ref, "a point ref is never reused");
+  await cdp.detach();
+});
+
+test("a point ref is for click and hover only", async () => {
+  fail = () => null;
+  seeReplies();
+  await cdp.attach(1);
+  const ref = await cdp.point(10, 10, "dot");
+  await assert.rejects(cdp.type(ref, "hi"), new RegExp(`${ref} is a point on the screen: only click and hover take it`));
+  await assert.rejects(cdp.select(ref, "a"), /is a point on the screen/);
+  await assert.rejects(cdp.scroll("down", ref), /is a point on the screen/);
+  await cdp.snapshot();
+  await cdp.hover(ref, { quiet: true });
+  await cdp.detach();
+});
+
+test("a point ref dies with the page", async () => {
+  fail = () => null;
+  seeReplies();
+  await cdp.attach(1);
+  const ref = await cdp.point(10, 10, "dot");
+  onEvent({ tabId: 1 }, "Page.frameNavigated", { frame: { url: "https://example.test/next", loaderId: "Z" } });
+  await assert.rejects(cdp.click(ref), /stale ref/);
+  await assert.rejects(cdp.click("@p999"), /unknown ref/);
+  await cdp.detach();
+});
+
+test("labelOf a point ref names what is under it, and degrades to the query alone", async () => {
+  fail = () => null;
+  seeReplies({
+    "DOM.getNodeForLocation": { backendNodeId: 7 },
+    "Accessibility.getPartialAXTree": { nodes: [{ backendDOMNodeId: 7, role: { value: "button" }, name: { value: "Delete" } }] },
+  });
+  await cdp.attach(1);
+  const ref = await cdp.point(10, 10, "the trash icon");
+  assert.equal(await cdp.labelOf(ref), '[point] "the trash icon" over [button] "Delete"');
+  fail = (_s, method) => (method === "DOM.getNodeForLocation" ? "no node" : null);
+  assert.equal(await cdp.labelOf(ref), '[point] "the trash icon"');
+  await cdp.detach();
+});
+
+test("point() refuses a position outside the viewport, and a non-number", async () => {
+  fail = () => null;
+  seeReplies();
+  await cdp.attach(1);
+  for (const [x, y] of [[-1, 5], [5, -1], [800, 5], [5, 600], [NaN, 5], [Infinity, 5]]) {
+    await assert.rejects(cdp.point(x, y, "q"), /outside/, `${x},${y}`);
+  }
+  await cdp.point(799, 599, "corner");
+  await cdp.detach();
+  reply = () => undefined;
 });

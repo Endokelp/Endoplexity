@@ -670,6 +670,8 @@ export async function snapshot(options) {
     }
   }
   if (peek) return out.join("\n");
+  // Points are not in the AX tree, so a re-read must not drop them.
+  for (const [ref, hit] of refs) if (hit.point) minted.set(ref, hit);
   refs = minted;
   return sinceLast(out.join("\n"), gen);
 }
@@ -728,7 +730,9 @@ function resolve(ref) {
  * "unknown ref" like every action, which the bridge reads as "nothing to weigh".
  */
 export async function labelOf(ref) {
-  const { sessionId, backendNodeId } = resolve(ref);
+  const hit = resolve(ref);
+  if (hit.point) return pointLabel(hit);
+  const { sessionId, backendNodeId } = hit;
   await send(sessionId, "Accessibility.enable");
   const { nodes } = await send(sessionId, "Accessibility.getPartialAXTree", { backendNodeId, fetchRelatives: false });
   const node = nodes.find((n) => n.backendDOMNodeId === backendNodeId) ?? nodes[0];
@@ -736,9 +740,90 @@ export async function labelOf(ref) {
   return lineLabel(node);
 }
 
+// See: where `find` said something is, as a viewport position (CSS px) rather
+// than a node. The counter never repeats, so a point from an earlier page can
+// only read as stale, never as a different point.
+let seeState = "off";
+let pointSeq = 0;
+
+export const setSee = (state) => void (seeState = state === "act" ? "act" : "off");
+export const getSee = () => seeState;
+
+/** Pixel size of a JPEG, read from its SOF marker. */
+export function jpegSize(bytes) {
+  for (let i = 2; i + 9 < bytes.length; ) {
+    if (bytes[i] !== 0xff) { i++; continue; }
+    const m = bytes[i + 1];
+    if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
+      return { height: (bytes[i + 5] << 8) | bytes[i + 6], width: (bytes[i + 7] << 8) | bytes[i + 8] };
+    }
+    i += m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7) ? 2 : 2 + ((bytes[i + 2] << 8) | bytes[i + 3]);
+  }
+  throw new Error("screenshot is not a readable JPEG");
+}
+
+/** The viewport's own screenshot, for Jev. Refuses unless See is on: the panel's check, not the bridge's. */
+export async function screenshot() {
+  if (seeState !== "act") throw new Error("See is off: no screenshot taken");
+  requireAttached();
+  const { cssVisualViewport: v } = await send(MAIN, "Page.getLayoutMetrics");
+  // Clipped to the viewport the point is mapped in: unclipped, the image also
+  // holds the scrollbar strip, and a box's fraction of it lands up to 15 px
+  // left of the thing at the right edge (measured: 2534 px wide against 2504).
+  const clip = { x: v.pageX, y: v.pageY, width: v.clientWidth, height: v.clientHeight, scale: 1 };
+  let { data } = await send(MAIN, "Page.captureScreenshot", { format: "jpeg", quality: 80, clip });
+  let bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  let { width, height } = jpegSize(bytes);
+  // Jev takes 256..1568 px a side; a hidpi viewport can exceed it.
+  const scale = Math.min(1, 1568 / Math.max(width, height));
+  if (scale < 1) {
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+    const canvas = new OffscreenCanvas(width, height);
+    canvas.getContext("2d").drawImage(await createImageBitmap(new Blob([bytes])), 0, 0, width, height);
+    bytes = new Uint8Array(await (await canvas.convertToBlob({ type: "image/jpeg", quality: 0.8 })).arrayBuffer());
+    data = btoa(bytes.reduce((s, b) => s + String.fromCharCode(b), ""));
+  }
+  console.log(`endo: screenshot ${width}x${height}`);
+  return { data, width, height, viewport: { width: v.clientWidth, height: v.clientHeight } };
+}
+
+/** Mint a point ref at a viewport position. Clickable and hoverable, nothing else. */
+export async function point(x, y, query) {
+  requireAttached();
+  const { cssLayoutViewport: v } = await send(MAIN, "Page.getLayoutMetrics");
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x >= v.clientWidth || y >= v.clientHeight) {
+    throw new Error(`point ${x},${y} is outside the ${v.clientWidth}x${v.clientHeight} viewport`);
+  }
+  const ref = `@p${++pointSeq}`;
+  refs.set(ref, { point: { x, y }, query: String(query ?? "").trim().slice(0, 200), sessionId: MAIN, generation });
+  return ref;
+}
+
+/** What is really under a point, for the gate. Never throws for a live point ref. */
+async function pointLabel({ point: { x, y }, query }) {
+  const head = `[point] "${query}"`;
+  try {
+    await send(MAIN, "DOM.getDocument", { depth: 0 });
+    const { backendNodeId } = await send(MAIN, "DOM.getNodeForLocation", { x: Math.floor(x), y: Math.floor(y), includeUserAgentShadowDOM: true });
+    await send(MAIN, "Accessibility.enable");
+    const { nodes } = await send(MAIN, "Accessibility.getPartialAXTree", { backendNodeId, fetchRelatives: false });
+    const node = nodes.find((n) => n.backendDOMNodeId === backendNodeId) ?? nodes[0];
+    return `${head} over ${lineLabel(node)}`;
+  } catch {
+    return head;
+  }
+}
+
+const noPoint = (ref) => {
+  throw new Error(`${ref} is a point on the screen: only click and hover take it`);
+};
+
 /** Centre of a ref in its own frame's coordinates, scrolled into view first. */
 async function centreOf(ref) {
-  const { sessionId, backendNodeId } = resolve(ref);
+  const hit = resolve(ref);
+  if (hit.point) return hit.point;
+  const { sessionId, backendNodeId } = hit;
   await send(sessionId, "DOM.scrollIntoViewIfNeeded", { backendNodeId });
   const { model } = await send(sessionId, "DOM.getBoxModel", { backendNodeId });
   const [x1, y1, x2, y2, x3, y3, x4, y4] = model.content;
@@ -765,6 +850,8 @@ async function centreOf(ref) {
  * not just the snapshot. Phase 2 spent six of them on one search.
  */
 export async function click(ref, options) {
+  // ponytail: a point inside a cross-site iframe is dispatched on MAIN, which
+  // never reaches an OOPIF (above). Upgrade: hit-test the frame, re-dispatch there.
   const { sessionId } = resolve(ref);
   const { x, y } = await centreOf(ref);
   const base = { x, y, button: "left", clickCount: 1 };
@@ -806,6 +893,7 @@ export async function hover(ref, options) {
  */
 export async function scroll(direction = "down", ref, options) {
   requireAttached();
+  if (ref && resolve(ref).point) noPoint(ref);
   const sessionId = ref ? resolve(ref).sessionId : MAIN;
   // The frame's own viewport when a ref names one — an OOPIF's metrics are its
   // own, so a wheel inside it must be aimed and sized in that space.
@@ -841,6 +929,7 @@ export async function scroll(direction = "down", ref, options) {
  * every autocomplete widget that listens for keydown actually fire.
  */
 export async function type(ref, text) {
+  if (resolve(ref).point) noPoint(ref);
   const { sessionId, backendNodeId } = resolve(ref);
   await send(sessionId, "DOM.focus", { backendNodeId });
   // ponytail: per-char, no batching. Design doc's ceiling is ~200 chars before
@@ -993,6 +1082,7 @@ function pickOption(value) {
  * events a dropdown listener actually waits for.
  */
 export async function select(ref, value, options) {
+  if (resolve(ref).point) noPoint(ref);
   const { sessionId, backendNodeId } = resolve(ref);
   const { object } = await send(sessionId, "DOM.resolveNode", { backendNodeId });
   const { result, exceptionDetails } = await send(sessionId, "Runtime.callFunctionOn", {

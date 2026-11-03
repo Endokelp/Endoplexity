@@ -16,6 +16,7 @@ import { labelFor, labelsOf, near, remember } from "./page.ts";
 import {
   argmax,
   ask,
+  askBox,
   backendOf,
   current,
   decide,
@@ -312,6 +313,64 @@ export function acted(ref: unknown): void {
     setTruth(arrival, CONSENT.test(label) ? "cookie" : SIGN_IN.test(label) ? "login" : "ready", "auto");
     arrival = null;
   }
+}
+
+// ------------------------------------------------------------------- See
+
+// Vercel's listed Jev price: $0.042 per million input tokens, output free.
+const USD_PER_TOKEN = 0.042 / 1e6;
+let seeUsd = 0;
+/** What See spent on Jev this run, for the panel's cost line. */
+export const seeSpent = () => seeUsd;
+export const resetSeeSpent = () => void (seeUsd = 0);
+
+/**
+ * See, for a find() the tree could not answer: a screenshot to Jev, and if it
+ * is confident the thing is on the screen, a point ref at its centre that
+ * click and hover take. The line to show the model, or null (abstain).
+ *
+ * Only in Act, only with Jev set up, and the panel refuses a screenshot on its
+ * own when See is off. The image goes to Jev and nowhere else: not the log,
+ * not the disk, not the CLI. Jev's 256 to 1568 px a side is the panel's to
+ * meet; an image outside it is not sent.
+ */
+export async function see(query: string): Promise<string | null> {
+  if (stateOf("see") !== "act") return null;
+  const p = provider("jev", true);
+  if (!p) return null;
+  let shot: { data: string; width: number; height: number; viewport: { width: number; height: number } };
+  try {
+    shot = JSON.parse(await callPanel("screenshot", {}));
+  } catch {
+    return null;
+  }
+  const side = (n: unknown) => typeof n === "number" && n >= 256 && n <= 1568;
+  if (typeof shot?.data !== "string" || !side(shot.width) || !side(shot.height)) return null;
+  const q = query.trim().slice(0, 200);
+  const row = newRow("see", "", { refs: {} });
+  const t0 = performance.now();
+  const [w, r] = await Promise.all([where(), askBox(p, { data: shot.data, format: "jpeg" }, q)]);
+  const ms = Math.round(performance.now() - t0);
+  row.state = [`Find: "${q}"`, `Page: ${w.title}`, `URL: ${w.url}`].join("\n");
+  if (r) seeUsd += r.tokens * USD_PER_TOKEN;
+  const probs = r ? { yes: r.present, no: 1 - r.present } : undefined;
+  row.answers.jev = r ? { p: probs, choice: argmax(probs!), ms, box: r.box } : { choice: null, ms };
+  const d = probs && decide(probs, temperature("jev", "see"));
+  let line: string | null = null;
+  if (r && d?.choice === "yes") {
+    // The box is in fractions of the image, and the image is the viewport.
+    const x = Math.round(((r.box.left + r.box.right) / 2) * shot.viewport.width);
+    const y = Math.round(((r.box.top + r.box.bottom) / 2) * shot.viewport.height);
+    try {
+      const ref = await callPanel("point", { x, y, query: q });
+      row.refs = { yes: ref };
+      // The model clicking it is the truth: open like a Pick row.
+      open = [...open.slice(-(OPEN_CAP - 1)), row];
+      line = `${ref} [point] "${q}" at ${x},${y} (See, from a screenshot: p=${d.p})`;
+    } catch {}
+  }
+  record(row);
+  return line;
 }
 
 /** A task ended or was stopped: what is still open never gets a truth. */

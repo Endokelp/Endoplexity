@@ -18,13 +18,14 @@ import {
   temper,
   type Provider,
 } from "../src/reflex.ts";
-import { acted, arrived, drop, gate, pick, settled } from "../src/reflexes.ts";
+import { acted, arrived, drop, gate, pick, see, seeSpent, resetSeeSpent, settled } from "../src/reflexes.ts";
+import { setPanel, dropPanel, settle } from "../src/relay.ts";
 import { endpoint } from "../src/laya.ts";
 import { remember } from "../src/page.ts";
 
 // A fake systemone server on a spare port. `reply` decides each answer; every
 // request it sees is kept, which is how "nothing left the machine" is asserted.
-type Seen = { auth?: string; body: any };
+type Seen = { auth?: string; images?: string; body: any };
 let server: Server;
 let base = "";
 let seen: Seen[] = [];
@@ -51,7 +52,7 @@ const keyFile = join(home, "jev-key");
 before(async () => {
   server = createServer(async (req, res) => {
     const body = await read(req);
-    seen.push({ auth: req.headers.authorization, body });
+    seen.push({ auth: req.headers.authorization, images: req.headers["typesafe-danger-zone-images"] as string, body });
     const r = reply(body);
     if (r.stall) return; // never answers: the budget has to end it
     res.writeHead(r.status ?? 200, { "content-type": "application/json" }).end(JSON.stringify(r.json ?? {}));
@@ -312,3 +313,94 @@ test("clearing the log deletes the file", () => {
   assert.equal(existsSync(join(home, "reflex-log.jsonl")), false);
   assert.equal(readFileSync(keyFile, "utf8"), "test-key-123456", "the key is untouched");
 });
+
+// ------------------------------------------------------------------- See
+
+// A panel that answers See's two calls (and the tab list), keeping each call.
+const SHOT = { data: "SCREENSHOT-BYTES", width: 1280, height: 800, viewport: { width: 1280, height: 800 } };
+async function withPanel(shot: object, run: (calls: { name: string; args: any }[]) => Promise<void>) {
+  const calls: { name: string; args: any }[] = [];
+  const panel = {
+    readyState: 1,
+    send(raw: string) {
+      const m = JSON.parse(raw);
+      if (m.type !== "tool") return;
+      calls.push({ name: m.name, args: m.args });
+      setImmediate(() => {
+        const value =
+          m.name === "screenshot" ? JSON.stringify(shot) : m.name === "point" ? "@p1" : '* id 7 — "Sketch" http://127.0.0.1:8787/fixtures/canvas.html';
+        settle({ id: m.id, ok: true, value });
+      });
+    },
+  };
+  setPanel(panel as never);
+  try {
+    await run(calls);
+  } finally {
+    dropPanel(panel as never);
+  }
+}
+const boxed = (present: number, box = { top: 0.2, bottom: 0.4, left: 0.1, right: 0.3 }) => () => ({
+  json: { answers: { present: { type: "noul", noul: present }, where: { type: "box", box, confidence: 0.9 } }, usage: { input_tokens: 4800 } },
+});
+
+test("See Off takes no screenshot and sends nothing, with Jev ready", async () => {
+  reply = boxed(0.99);
+  saveSettings({ jevAccepted: true });
+  await withPanel(SHOT, async (calls) => {
+    assert.equal(await see("the red circle"), null);
+    assert.deepEqual(calls.map((c) => c.name), [], "no screenshot asked of the panel");
+  });
+  assert.equal(seen.length, 0);
+});
+
+test("See On: a confident box becomes a point ref at its centre; the image goes to Jev and nowhere else", async () => {
+  reply = boxed(0.97);
+  resetSeeSpent();
+  saveSettings({ see: { state: "act" }, jevAccepted: true });
+  await withPanel(SHOT, async (calls) => {
+    const line = await see("the red circle");
+    assert.equal(line, '@p1 [point] "the red circle" at 256,240 (See, from a screenshot: p=0.97)');
+    const point = calls.find((c) => c.name === "point")!;
+    assert.deepEqual(point.args, { x: 256, y: 240, query: "the red circle" }, "the box's centre, in viewport px");
+  });
+  assert.equal(seen.length, 1);
+  const [req] = seen;
+  assert.equal(req.images, "true", "TypeSafe's image opt-in header");
+  assert.equal(req.body.model, "jev-1.14.0", "the moving aliases take no box");
+  assert.equal(req.body.assets[req.body.state.screen].data_base64, "SCREENSHOT-BYTES");
+  assert.ok(seeSpent() > 0, "the run's Jev cost is counted");
+  // The truth is the model clicking it.
+  acted("@p1");
+  assert.deepEqual(stats().see.jev, { agreed: 1, of: 1 });
+  assert.ok(!readFileSync(join(home, "reflex-log.jsonl"), "utf8").includes("SCREENSHOT-BYTES"), "an image is never logged");
+});
+
+test("See abstains on a weak presence, an inside-out box, and a screenshot Jev cannot take", async () => {
+  saveSettings({ see: { state: "act" }, jevAccepted: true });
+  for (const r of [boxed(0.4), boxed(0.99, { top: 0.5, bottom: 0.2, left: 0.1, right: 0.3 })]) {
+    reply = r;
+    await withPanel(SHOT, async (calls) => {
+      assert.equal(await see("the red circle"), null);
+      assert.ok(!calls.some((c) => c.name === "point"), "no point minted on an abstention");
+    });
+  }
+  seen = [];
+  reply = boxed(0.99);
+  await withPanel({ ...SHOT, width: 3000 }, async () => assert.equal(await see("the red circle"), null));
+  assert.equal(seen.length, 0, "an image outside 256 to 1568 px is not sent");
+});
+
+test("a Vercel AI Gateway key reaches Jev under the gateway's model ids", async () => {
+  writeFileSync(keyFile, "vck_test-key-123456");
+  try {
+    reply = boxed(0.97);
+    saveSettings({ see: { state: "act" }, pick: { state: "shadow", backend: "jev" }, jevAccepted: true });
+    await withPanel(SHOT, async () => void (await see("the red circle")));
+    assert.equal(seen.at(-1)!.body.model, "typesafe-ai/jev-1.14.0");
+    assert.equal(seen.at(-1)!.auth, "Bearer vck_test-key-123456");
+  } finally {
+    writeFileSync(keyFile, "test-key-123456");
+  }
+});
+

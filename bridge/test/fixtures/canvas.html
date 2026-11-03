@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canvas fixture</title>
+<style>body{margin:16px;font-family:sans-serif}canvas{border:1px solid #888;max-width:100%}</style>
+</head>
+<body>
+<h1>Sketch</h1>
+<canvas id="board" width="640" height="400" aria-label="Drawing board"></canvas>
+<p id="status" role="status">Nothing clicked yet</p>
+<script>
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+ctx.fillStyle = "red";
+ctx.beginPath(); ctx.arc(120, 120, 50, 0, Math.PI * 2); ctx.fill();
+ctx.fillStyle = "blue";
+ctx.fillRect(300, 80, 100, 100);
+ctx.fillStyle = "green";
+ctx.beginPath(); ctx.moveTo(520, 250); ctx.lineTo(570, 350); ctx.lineTo(470, 350); ctx.closePath(); ctx.fill();
+
+// Triangle by barycentric sign test.
+const inTriangle = (x, y) => {
+  const s = (ax, ay, bx, by) => (x - bx) * (ay - by) - (ax - bx) * (y - by);
+  const d1 = s(520, 250, 570, 350), d2 = s(570, 350, 470, 350), d3 = s(470, 350, 520, 250);
+  return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+};
+
+canvas.addEventListener("click", (e) => {
+  const r = canvas.getBoundingClientRect();
+  const x = ((e.clientX - r.left) * canvas.width) / r.width;
+  const y = ((e.clientY - r.top) * canvas.height) / r.height;
+  let hit = "nothing";
+  if ((x - 120) ** 2 + (y - 120) ** 2 <= 50 ** 2) hit = "red circle";
+  else if (x >= 300 && x <= 400 && y >= 80 && y <= 180) hit = "blue square";
+  else if (inTriangle(x, y)) hit = "green triangle";
+  document.getElementById("status").textContent = "Clicked: " + hit;
+});
+</script>
+</body>
+</html>

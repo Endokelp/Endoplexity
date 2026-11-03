@@ -326,6 +326,11 @@ async function runChecks(check, skip, filePath) {
     "and a ref from before that re-read still resolves",
     someRef && (await cdp.hover(someRef).then(() => null, (err) => err.message)),
   );
+
+  const seeWas = cdp.getSee();
+  cdp.setSee("off");
+  check("See off: no screenshot is taken", await throws(() => runTool("screenshot"), "See is off"));
+  cdp.setSee(seeWas);
 }
 
 /**

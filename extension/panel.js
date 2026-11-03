@@ -321,7 +321,7 @@ async function answer({ id, name, args, label }) {
   // a step that only appears once it has finished is not one.
   // The gate's checks before an action are the bridge's business, not a step
   // the agent took, so they get no row.
-  const row = name === "label" || args?.peek ? null : ui.tool(name, args, label);
+  const row = name === "label" || name === "screenshot" || name === "point" || args?.peek ? null : ui.tool(name, args, label);
   try {
     const value = await runTool(name, args);
     row?.ok(value);
@@ -350,6 +350,7 @@ function cost(event) {
     (u.output_tokens ?? u.outputTokens ?? 0);
   const parts = [];
   if (event.total_cost_usd !== undefined) parts.push(`$${event.total_cost_usd.toFixed(4)}`);
+  if (event.see_usd > 0) parts.push(`See $${event.see_usd.toFixed(4)}`);
   if (tokens) parts.push(`${tokens.toLocaleString()} tokens`);
   if (event.num_turns !== undefined) parts.push(`${event.num_turns} turns`);
   parts.push(`${Math.round((event.duration_ms ?? 0) / 1000)}s`);
@@ -510,6 +511,7 @@ function connect() {
     if (msg.type === "note") return void ui.note(msg.text);
     if (msg.type === "reflexes") {
       cdp.setSettle(msg.settings.enabled ? msg.settings.settle.state : "off");
+      cdp.setSee(msg.settings.enabled && msg.settings.see?.state === "act" ? "act" : "off");
       return void reflexes.apply(msg);
     }
     // claude's reader subagent started or handed back: see forget() in cdp.js.

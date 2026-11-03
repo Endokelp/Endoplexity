@@ -23,6 +23,8 @@ const COOKIES = [
   ["reject", "Reject non-essential"],
   ["accept", "Accept"],
 ];
+const SEE_DISCLOSURE =
+  "On: when find cannot place something, a screenshot of the page goes to TypeSafe (Jev) through your key, and nowhere else. Screenshots are never saved.";
 const ACT_HINT = "Act unlocks after 50 shadow decisions at 95% agreement";
 const JEV_DISCLOSURE =
   "Jev is TypeSafe's hosted model. With Jev on, the page text a reflex reads (button labels, nearby lines, the page title and URL, never field values) is sent to TypeSafe. Their privacy policy says they do not train on it, and gives no retention period.";
@@ -85,6 +87,15 @@ export function initReflexes(root, send) {
       list.append(el("div", { className: "rx-line" }, el("div", { className: "rx-name" }, el("span", { textContent: "Cookie banners" })), cookies));
     }
   }
+
+  const see = el("select", { id: "rx-see-state", ariaLabel: "See (screenshots) state" });
+  see.append(option("off", "Off"), option("act", "On"));
+  see.addEventListener("change", () => commit((s) => (s.see = { state: see.value })));
+  const seeNote = el("div", { className: "rx-stats", textContent: SEE_DISCLOSURE });
+  list.append(
+    el("div", { className: "rx-line" }, el("div", { className: "rx-name" }, el("b", { textContent: "See" }), el("span", { textContent: "screenshots, when find cannot place it" })), see),
+    seeNote,
+  );
 
   const status = el("div", { className: "rx-status" });
 
@@ -175,6 +186,10 @@ export function initReflexes(root, send) {
       row.stats.hidden = !row.stats.childElementCount;
     }
     rows.cookies.value = settings.cookies ?? "agent";
+    const jevInfo = backends.jev;
+    see.value = settings.see?.state === "act" ? "act" : "off";
+    see.disabled = jevInfo?.ready !== true;
+    see.title = see.disabled ? (jevInfo?.note || "Needs Jev ready") : "";
     status.replaceChildren();
     for (const [b, label] of BACKENDS.slice(1)) {
       const info = backends[b];

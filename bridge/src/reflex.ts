@@ -22,10 +22,11 @@ import { endpoint as layaEndpoint, status as layaStatus } from "./laya.ts";
 
 export type State = "off" | "shadow" | "act";
 export type Backend = "lexical" | "laya" | "jev";
-export type Reflex = "pick" | "gate" | "obstacle" | "settle";
+export type Reflex = "pick" | "gate" | "obstacle" | "settle" | "see";
 export type Question = { type: "choice"; instructions: string; criteria: Record<string, string> };
 export type Probs = Record<string, number>;
-export type Answer = { p?: Probs; choice: string | null; ms?: number };
+export type Box = { top: number; bottom: number; left: number; right: number };
+export type Answer = { p?: Probs; choice: string | null; ms?: number; box?: Box };
 export type Row = {
   id: string;
   at: number;
@@ -46,6 +47,9 @@ export type Settings = {
   gate: Setting;
   obstacle: Setting;
   settle: { state: State };
+  // Jev only, and Off or Act: a point the model is never shown has no truth to
+  // log, so See has no Shadow. Off until the user turns it on.
+  see: { state: "off" | "act" };
   cookies: "agent" | "reject" | "accept";
   jevAccepted: boolean;
 };
@@ -61,6 +65,7 @@ const DEFAULTS: Settings = {
   gate: { state: "shadow", backend: "lexical" },
   obstacle: { state: "shadow", backend: "lexical" },
   settle: { state: "shadow" },
+  see: { state: "off" },
   cookies: "agent",
   jevAccepted: false,
 };
@@ -74,12 +79,14 @@ const MARGIN = 0.2;
 const ACT_AFTER = 50;
 const ACT_AGREEMENT = 0.95;
 // Shadow never blocks the run, so its budget only stops a dead backend from
-// piling up open requests. Act budgets are per provider (laya.ts, JEV below).
+// piling up open requests. Act budgets are per provider (laya.ts, JEV_BUDGET below).
 const SHADOW_BUDGET_MS = 10_000;
 // Page text in the log is personal data: it stays local and stays small.
 const LOG_CAP = 5_000_000;
 
-const JEV = { model: "jev-latest", budget: 1_000 };
+const JEV_BUDGET = 1_000;
+// An image question: no measured number yet (P19's live run sets it).
+const SEE_BUDGET = 8_000;
 
 export type Provider = { base: string; key: string; model: string; budget: number };
 
@@ -141,6 +148,7 @@ export function sanitize(raw: unknown): Settings {
     gate: { ...DEFAULTS.gate },
     obstacle: { ...DEFAULTS.obstacle },
     settle: { state: pickState(r.settle?.state, DEFAULTS.settle.state) },
+    see: { state: r.see?.state === "act" ? "act" : "off" },
     cookies: ["agent", "reject", "accept"].includes(r.cookies) ? r.cookies : DEFAULTS.cookies,
     jevAccepted: r.jevAccepted === true,
   };
@@ -184,13 +192,20 @@ export function writeJevKey(key: unknown): void {
  * disclosure accepted: without it, no page text leaves the machine, whatever
  * else is configured. Read at call time, so a key saved mid-run applies.
  */
-export function provider(backend: Backend): Provider | null {
-  if (backend === "laya") return layaEndpoint();
+export function provider(backend: Backend, image = false): Provider | null {
+  if (backend === "laya") return image ? null : layaEndpoint();
   if (backend !== "jev" || !settings?.jevAccepted) return null;
   const key = readJevKey();
-  // Overridable so the tests can point it at a fake server on a spare port.
-  const base = process.env.ENDO_JEV_BASE ?? "https://api.typesafe.ai";
-  return key ? { base, key, ...JEV } : null;
+  if (!key) return null;
+  // A TypeSafe key, or a Vercel AI Gateway key: the gateway serves Jev with no
+  // waitlist (TypeSafe paused direct signups on 2026-09-22), same body, its
+  // own model ids. Images need 1.14: the moving aliases do not take `box`.
+  // ponytail: told apart by Vercel's vck_ key prefix. ENDO_JEV_BASE overrides
+  // the base either way, which is how the tests reach a fake server.
+  const vercel = key.startsWith("vck_");
+  const base = process.env.ENDO_JEV_BASE ?? (vercel ? "https://ai-gateway.vercel.sh/typesafe" : "https://api.typesafe.ai");
+  const model = image ? "jev-1.14.0" : vercel ? "jev" : "jev-latest";
+  return { base, key, model: vercel ? `typesafe-ai/${model}` : model, budget: image ? SEE_BUDGET : JEV_BUDGET };
 }
 
 /**
@@ -226,6 +241,59 @@ export async function ask(
       out[id] = probs;
     }
     return out;
+  } catch {
+    return null;
+  }
+}
+
+export type Seen = { present: number; box: Box; tokens: number };
+const frac = (v: unknown): v is number => typeof v === "number" && v >= 0 && v <= 1;
+
+/**
+ * See's question, over a screenshot: is "query" there at all (`noul`), and
+ * where (`box`). Both, because a box question always answers with a box, even
+ * for something that is not on the screen. Jev 1.14's image request: the image
+ * is an asset the state names, behind TypeSafe's opt-in header.
+ * The answer is untrusted like any backend's: a box out of [0, 1] or inside
+ * out is refused, and every failure is an abstention (null).
+ */
+export async function askBox(
+  p: Provider,
+  image: { data: string; format: "jpeg" | "png" },
+  query: string,
+): Promise<Seen | null> {
+  try {
+    const res = await fetch(`${p.base}/v1/systemone`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${p.key}`,
+        "TypeSafe-Danger-Zone-Images": "true",
+      },
+      body: JSON.stringify({
+        model: p.model,
+        // A state label naming an asset id, as TypeSafe's own example does.
+        state: { screen: "screen-1" },
+        assets: { "screen-1": { type: "image", format: image.format, data_base64: image.data } },
+        questions: {
+          present: { type: "noul", instructions: `Is ${query} visible in \`screen\`?` },
+          where: { type: "box", instructions: `${query} in \`screen\`` },
+        },
+      }),
+      signal: AbortSignal.timeout(p.budget),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as any;
+    const present = body?.answers?.present?.noul;
+    const box = body?.answers?.where?.box;
+    if (!frac(present) || ![box?.top, box?.bottom, box?.left, box?.right].every(frac)) return null;
+    if (!(box.top < box.bottom && box.left < box.right)) return null;
+    const tokens = Number(body?.usage?.input_tokens);
+    return {
+      present,
+      box: { top: box.top, bottom: box.bottom, left: box.left, right: box.right },
+      tokens: Number.isFinite(tokens) && tokens > 0 ? tokens : 0,
+    };
   } catch {
     return null;
   }
@@ -381,7 +449,7 @@ type Tally = { agreed: number; of: number };
 
 /** Per reflex, per backend: how often its top answer matched the truth. */
 export function stats(): Record<Reflex, Record<string, Tally>> {
-  const out: Record<Reflex, Record<string, Tally>> = { pick: {}, gate: {}, obstacle: {}, settle: {} };
+  const out: Record<Reflex, Record<string, Tally>> = { pick: {}, gate: {}, obstacle: {}, settle: {}, see: {} };
   for (const r of rows) {
     if (r.truth === undefined) continue;
     for (const [b, a] of Object.entries(r.answers)) {

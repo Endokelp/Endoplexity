@@ -7,7 +7,7 @@ import { check, reads, rememberApproval, resetApprovals, type Mode } from "./gat
 import { remember, labelFor, labelsOf, find, hasPage } from "./page.ts";
 import { keys, resolve } from "./files.ts";
 import { extract, page } from "./docs.ts";
-import { acted, arrived, drop, gate, pick, where } from "./reflexes.ts";
+import { acted, arrived, drop, gate, pick, see, where } from "./reflexes.ts";
 import {
   cleanVars,
   describe,
@@ -789,6 +789,11 @@ function build() {
           : picked === undefined && top.p >= CONFIDENT
             ? `best match ${top.line} (p=${top.p})`
             : hits.map((h) => `${h.line} (p=${h.p})`).join("\n");
+      // The tree had no confident answer: a canvas, a map, a drawn control.
+      // See looks at the screen instead, when the user has turned it on.
+      const placed = picked || (picked === undefined && top && top.p >= CONFIDENT);
+      const point = placed ? null : await see(query);
+      if (point) return { content: [{ type: "text" as const, text: `on the screen: ${point}\nfrom the page's tree:\n${text}` }] };
       return { content: [{ type: "text" as const, text }] };
     },
   );

@@ -25,7 +25,7 @@ import { writeCodexConfig } from "./codex.ts";
 import { MODELS } from "./models.ts";
 import { attach, detach, list as listFiles } from "./files.ts";
 import { clearLog, initReflexes, mark, needsLaya, onChange, panelState, saveSettings, writeJevKey } from "./reflex.ts";
-import { settled, where } from "./reflexes.ts";
+import { resetSeeSpent, seeSpent, settled, where } from "./reflexes.ts";
 import { startLaya, stopLaya } from "./laya.ts";
 
 const HOST = "127.0.0.1"; // never 0.0.0.0 — this socket can drive a logged-in browser
@@ -50,6 +50,8 @@ const FIXTURES: Record<string, URL> = {
   "/fixtures/form.html": new URL("../test/fixtures/form.html", import.meta.url),
   "/fixtures/note.html": new URL("../test/fixtures/note.html", import.meta.url),
   "/fixtures/cookie.html": new URL("../test/fixtures/cookie.html", import.meta.url),
+  // Shapes drawn on a canvas, with no element of their own: See's page.
+  "/fixtures/canvas.html": new URL("../test/fixtures/canvas.html", import.meta.url),
 };
 
 const token = loadToken();
@@ -240,7 +242,7 @@ function startTask(
     asked = [asking ?? prompt];
     queued = [];
     spent = [];
-    if (!handoff) resetSteps();
+    if (!handoff) (resetSteps(), resetSeeSpent());
   } else if (resuming && !steered) asked.push(`Then the user replied:\n${prompt}`);
   if (!isRetry && !takeover && !steered) stopping = false;
   if (fallbacks !== undefined) order = cleanOrder(fallbacks);
@@ -255,6 +257,8 @@ function startTask(
     // reported a failed start twice: two red notes, and the end of the run
     // handled twice. One guard here rather than one per adapter.
     if (ended) return;
+    // What See spent on Jev rides on the run's own cost line.
+    if (event.type === "result" && seeSpent() > 0) event = { ...event, see_usd: seeSpent() };
     const terminal = event.type === "done" || event.type === "failed";
     if (terminal) ended = true;
     const id = sessionOf(event);
