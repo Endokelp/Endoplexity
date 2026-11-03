@@ -12,7 +12,7 @@ click, type, fill forms, move between tabs, all through your existing `claude`,
 
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-1f6f4a)](LICENSE)
 [![Node](https://img.shields.io/badge/node-24%2B-1f6f4a)](package.json)
-[![Tests](https://img.shields.io/badge/tests-277%20passing-1f6f4a)](bridge/test)
+[![Tests](https://img.shields.io/badge/tests-290%20passing-1f6f4a)](bridge/test)
 [![API key](https://img.shields.io/badge/API%20key-not%20required-1f6f4a)](#what-it-costs)
 
 <img src="docs/demo.gif" width="100%" alt="Endoplexity opening three pricing pages in separate tabs and comparing their free tiers in one table">
@@ -203,6 +203,10 @@ hit **Run**. A couple of things worth knowing right away:
   in the **Engines** sheet, on a different CLI and on the same tab, from a
   summary of what was done. That engine's vendor then receives the page.
 - Type `@` in the box to hand the agent another tab you have open.
+- List the sites a run may act on in the **Plan** sheet, and anything
+  outside them asks you first. **Log** → **Export audit** saves what the
+  last task did as a Markdown file: each action, the tab, what was typed
+  (passwords redacted), and every approval with its verdict.
 - A fresh Run always attaches to whichever tab you're currently looking at,
   so open the page you want it working on *before* you press Run.
 
@@ -239,11 +243,22 @@ boundaries here are worth stating plainly, including where they stop.
   of the page. A button labelled in another language, worded unusually
   ("Finish", "Yes, place it"), or carrying only an icon will **not** be
   caught. Use `watch` mode where that matters.
+- **A second key reads each approval first.** Before the card appears, a
+  cheap model from a different vendor than the one driving (Codex for a
+  Claude run, Claude Haiku for the rest) gets your task, the action and the
+  page around it, and says allow, warn or block with a reason. On block,
+  Approve becomes Override. It never approves anything itself, and it can
+  be switched off in **Engines**. A page that talked the driving model into
+  "Confirm transfer" has to fool a second model, from another company, told
+  that the page is the suspect. That vendor does receive those page lines.
+- **A plan lock, enforced in the bridge.** The sites you list in **Plan**
+  are the only ones a run acts on without asking, in every mode, `trust`
+  included.
 - **Three autonomy modes** (`watch` / `normal` / `trust`), chosen in the
   panel and enforced in the bridge. An absent or unrecognised mode falls
   back to `normal`, never `trust`, so it fails closed. `trust` disables the
-  gate entirely, which is why the panel shows it in red the whole time it's
-  set. *(The demo above runs in `trust` mode, which is why you never see the
+  gate, all but a plan you set, which is why the panel shows it in red the
+  whole time it's set. *(The demo above runs in `trust` mode, which is why you never see the
   gate fire.)*
 - **Files resolve a configured key, never a model-supplied path.**
   `DOM.setFileInputFiles` runs in the browser process and can read almost
@@ -285,7 +300,7 @@ a full page once and then only the lines that changed afterward: 119,856 →
 ## Status
 
 Early. `v0.0.1`, and honest about it. The tool layer, approval gate, session
-continuity, and panel are all built and tested: **277 unit tests**, plus an
+continuity, and panel are all built and tested: **290 unit tests**, plus an
 in-panel self-test that drives the real CDP layer against a cross-origin
 fixture (run `await endo.selftest()` in the panel's own console).
 
@@ -305,7 +320,7 @@ Known gaps, stated rather than hidden:
 ## Development
 
 ```bash
-npm test     # 277 tests, node:test, no framework, no build step
+npm test     # 290 tests, node:test, no framework, no build step
 npm start    # run the bridge in the foreground to watch its log
 npm run reflex:train   # fine-tune the local Laya reflex model on your own logged decisions
 node scripts/live.ts launch   # the panel in Chrome for Testing, driven from a terminal
