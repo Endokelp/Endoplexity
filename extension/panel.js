@@ -271,9 +271,10 @@ cdp.onSettle((row) => {
 
 // The failover order, set from the Engines sheet once storage has been read.
 let fallbacks = [];
-// The Plan box (allowed sites): rides on every task and run-skill, and is read
-// back from storage below.
+// The Plan box (allowed sites) and the Second key switch: both ride on every
+// task and run-skill, and both are read back from storage below.
 let planRaw = "";
+let secondKey = true;
 const planEl = document.getElementById("plan-sites");
 
 // Skills and proposals are bridge state too: redrawn from the last message on
@@ -290,18 +291,41 @@ function gateLabels(ok = "Approve", no = "Deny") {
   document.getElementById("gate-deny-text").textContent = no;
 }
 
-function showGate({ id, action, ok, no }) {
+const gateSecond = document.getElementById("gate-second");
+const VERDICT = { allow: "Allow", warn: "Warn", block: "Block" };
+
+function showGate({ id, action, ok, no, second }) {
   pendingGateId = id;
   gateAction.textContent = action;
   gateLabels(ok || undefined, no || undefined);
+  let row = action;
+  if (second) {
+    const word = VERDICT[second.verdict];
+    const text = word
+      ? `Second key (${second.by}): ${word}. ${second.reason}`
+      : `Second key unavailable (${second.by}): ${second.reason}`;
+    gateSecond.textContent = text;
+    gateSecond.className = `shown ${word ? second.verdict : ""}`;
+    row = `${action} · ${text}`;
+    if (second.verdict === "block") {
+      // A reflexive click on the usual spot must deny, so the primary look moves.
+      gateLabels("Override", no || undefined);
+      gateApprove.classList.remove("primary");
+      gateDeny.classList.add("primary");
+    }
+  }
   gate.classList.add("show");
-  ui.gateRow(action);
+  ui.gateRow(row);
 }
 
 function hideGate() {
   pendingGateId = null;
   gate.classList.remove("show");
   gateLabels();
+  gateSecond.textContent = "";
+  gateSecond.className = "";
+  gateApprove.classList.add("primary");
+  gateDeny.classList.remove("primary");
 }
 
 /** Approve/Deny share this — only the boolean differs. */
@@ -600,7 +624,7 @@ async function runSkill(id, vars = {}) {
   said = [];
   await rebind(name);
   const page = await cdp.currentPage().catch(() => null);
-  if (!send({ type: "run-skill", id, vars, model: modelEl.value, mode: modeEl.value, fallbacks, plan: splitPlan(planRaw) })) {
+  if (!send({ type: "run-skill", id, vars, model: modelEl.value, mode: modeEl.value, fallbacks, plan: splitPlan(planRaw), secondKey })) {
     return setBusy(false);
   }
   ui.user(`Run skill: ${name}`);
@@ -678,7 +702,7 @@ async function runTask(resume = false) {
     .join("\n\n");
   // The model rides along, but the bridge overrules it on a reply: a claude
   // transcript cannot be handed to cursor-agent.
-  if (!send({ type: "task", task: prompt, prompt: sent, model: modelEl.value, mode: modeEl.value, resume, fallbacks, plan: splitPlan(planRaw) })) {
+  if (!send({ type: "task", task: prompt, prompt: sent, model: modelEl.value, mode: modeEl.value, resume, fallbacks, plan: splitPlan(planRaw), secondKey })) {
     return setBusy(false);
   }
   ui.user(prompt);
@@ -1043,11 +1067,16 @@ promptEl.addEventListener("keydown", (event) => {
   runTask(resume);
 });
 
-const stored = await chrome.storage.local.get(["model", "mode", "sessions", "fallbacks", "plan"]);
-fallbacks = initEngines(document.getElementById("engines"), modelEl, stored.fallbacks, (order) => {
+const stored = await chrome.storage.local.get(["model", "mode", "sessions", "fallbacks", "plan", "secondKey"]);
+const engines = initEngines(document.getElementById("engines"), modelEl, stored.fallbacks, (order) => {
   fallbacks = order;
   chrome.storage.local.set({ fallbacks });
-}).order();
+}, stored.secondKey, (on) => {
+  secondKey = on;
+  chrome.storage.local.set({ secondKey });
+});
+fallbacks = engines.order();
+secondKey = engines.secondKey();
 if (typeof stored.plan === "string") planRaw = planEl.value = stored.plan;
 planEl.addEventListener("input", () => {
   planRaw = planEl.value;

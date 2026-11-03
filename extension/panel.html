@@ -584,6 +584,11 @@
         line-height: 1.5;
         overflow-wrap: anywhere;
       }
+      /* The second key's word on the action: loud only when it says no. */
+      #gate-second { display: none; font-size: var(--t-micro); line-height: 1.5; color: var(--text-faint); overflow-wrap: anywhere; }
+      #gate-second.shown { display: block; }
+      #gate-second.block { color: var(--danger); }
+      #gate-second.warn { color: var(--gate); }
       #gate .pair { display: flex; gap: 7px; }
       #gate .pair button { flex: 1; }
 
@@ -958,6 +963,7 @@
         border: 1px solid var(--line-soft);
         border-radius: 999px;
       }
+      #engines input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
       #engines select { max-width: none; flex: 0 1 auto; border-color: var(--line-soft); }
       #reflexes select { max-width: none; flex: 0 1 auto; border-color: var(--line-soft); }
       #reflexes input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
@@ -1209,6 +1215,7 @@
         Approval needed
       </div>
       <div id="gate-action"></div>
+      <div id="gate-second" role="status"></div>
       <div class="pair">
         <button id="gate-approve" class="primary">
           <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>

@@ -209,6 +209,16 @@ export function codexEvents(model: string) {
 export const API_KEYS = ["CODEX_API_KEY", "OPENAI_API_KEY"];
 
 /**
+ * The bridge's environment without either API-key variable: `codex exec` bills
+ * CODEX_API_KEY in preference to the login, and this product runs on the
+ * subscription. Compared upper-cased because Windows looks env names up
+ * case-insensitively, so an `OpenAI_Api_Key` the operator set would still be
+ * found by the child. The second key's judge (second.ts) spawns with it too.
+ */
+export const codexEnv = () =>
+  Object.fromEntries(Object.entries(process.env).filter(([key]) => !API_KEYS.includes(key.toUpperCase())));
+
+/**
  * Spawn `codex exec` restricted to the browser tools. Pass `resume` to continue
  * a previous run's thread rather than starting a fresh one.
  */
@@ -218,19 +228,12 @@ export function runCodex(
   onEvent: (event: Record<string, unknown>) => void,
   resume?: string,
 ): ChildProcess {
-  // Both API-key variables are dropped: `codex exec` bills CODEX_API_KEY in
-  // preference to the login, and this product runs on the subscription.
-  // Compared upper-cased because Windows looks env names up case-insensitively,
-  // so an `OpenAI_Api_Key` the operator set would still be found by the child.
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !API_KEYS.includes(key.toUpperCase())),
-  );
   const child = spawn(resolveCodex(), codexArgs(prompt, model, resume), {
     cwd: tmpdir(),
     windowsHide: true,
     // stdin ignored: exec otherwise waits on "Reading additional input from stdin".
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...env, CODEX_HOME },
+    env: { ...codexEnv(), CODEX_HOME },
   });
 
   const toPanel = codexEvents(model);

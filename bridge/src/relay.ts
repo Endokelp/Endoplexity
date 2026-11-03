@@ -1,4 +1,5 @@
 import type { WebSocket } from "ws";
+import type { Second } from "./second.ts";
 
 /**
  * The bridge's half of the tool path: an MCP tool call arrives over HTTP, has to
@@ -122,7 +123,7 @@ export function callPanel(
  * Denies immediately with no panel connected, and denies on a 60s timeout —
  * silence is not consent, and a stuck task is worse than an over-cautious one.
  */
-export function askPanel(action: string, labels?: { ok: string; no: string }): Promise<boolean> {
+export function askPanel(action: string, labels?: { ok: string; no: string }, second?: Second): Promise<boolean> {
   if (!panelConnected()) return Promise.resolve(false);
   const id = ++gateSeq;
   return new Promise<boolean>((resolve) => {
@@ -132,7 +133,8 @@ export function askPanel(action: string, labels?: { ok: string; no: string }): P
     }, GATE_TIMEOUT_MS);
     gatePending.set(id, { resolve, timer });
     // `labels` only rename the buttons: an answer is still approved or not.
-    panel!.send(JSON.stringify({ type: "gate", id, action, ...labels }));
+    // `second` is shown on the card (second.ts); it decides nothing here.
+    panel!.send(JSON.stringify({ type: "gate", id, action, ...labels, ...(second && { second }) }));
   });
 }
 

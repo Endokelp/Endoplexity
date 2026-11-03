@@ -87,7 +87,11 @@ test("nothing that bypasses the sandbox or approvals reaches the spawn", () => {
 test("the spawn runs on the subscription, never an API key, in any spelling", () => {
   assert.deepEqual(API_KEYS, ["CODEX_API_KEY", "OPENAI_API_KEY"]);
   assert.match(code, /!API_KEYS\.includes\(key\.toUpperCase\(\)\)/);
-  assert.match(code, /env: \{ \.\.\.env, CODEX_HOME \}/);
+  assert.match(code, /env: \{ \.\.\.codexEnv\(\), CODEX_HOME \}/);
+  // The second key's judge spawns codex as well, on the same terms.
+  const judge = readFileSync(fileURLToPath(new URL("../src/second.ts", import.meta.url)), "utf8");
+  assert.match(judge, /env: \{ \.\.\.codexEnv\(\), CODEX_HOME \}/);
+  assert.doesNotMatch(judge, /dangerously|full-auto|danger-full-access|shell:\s*true/);
 });
 
 // From a real run (2026-11-01, gpt-6.1-sol, one endo call with no panel attached).

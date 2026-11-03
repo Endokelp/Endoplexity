@@ -18,11 +18,17 @@ export function cleanOrder(stored, offered) {
   return out.slice(0, SLOTS.length);
 }
 
+const SECOND_NOTE =
+  "Before you approve an action, a model from another vendor than the running one says whether it serves your task: claude runs ask Codex, the others ask Claude Haiku. That vendor receives your task, the action, and the page lines around it.";
+
 /** The Plan box's raw text as the list the bridge sanitizes: commas or spaces, no empties. */
 export const splitPlan = (raw) => String(raw ?? "").split(/[\s,]+/).filter(Boolean);
 
-/** `root` is the sheet inside the footer <details>; returns the current order. */
-export function initEngines(root, modelSelect, stored, onChange) {
+/**
+ * `root` is the sheet inside the footer <details>; returns the current order and
+ * the Second key setting (a missing stored value means on).
+ */
+export function initEngines(root, modelSelect, stored, onChange, storedSecond, onSecond) {
   const offered = [...modelSelect.options].map((o) => o.value);
   const order = cleanOrder(stored, offered);
   const selects = SLOTS.map((name, i) => {
@@ -51,5 +57,17 @@ export function initEngines(root, modelSelect, stored, onChange) {
     line.append(name, select);
     root.append(line);
   });
-  return { order: read };
+
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = storedSecond !== false;
+  box.addEventListener("change", () => onSecond(box.checked));
+  const label = document.createElement("label");
+  label.className = "rx-switch";
+  label.append(box, " Second key");
+  const secondNote = document.createElement("p");
+  secondNote.className = "rx-note";
+  secondNote.textContent = SECOND_NOTE;
+  root.append(label, secondNote);
+  return { order: read, secondKey: () => box.checked };
 }

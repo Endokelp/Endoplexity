@@ -3,11 +3,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { callPanel, askPanel, panelConnected, sendPanel } from "./relay.ts";
-import { allowHost, check, offPlan, planOf, reads, rememberApproval, resetApprovals, setPlan, type Mode } from "./gate.ts";
-import { remember, labelFor, labelsOf, find, hasPage } from "./page.ts";
+import { allowHost, check, IRREVERSIBLE, offPlan, planOf, reads, rememberApproval, resetApprovals, setPlan, type Mode } from "./gate.ts";
+import { remember, labelFor, labelsOf, find, hasPage, near, controls } from "./page.ts";
+import { secondKey } from "./second.ts";
 import { keys, resolve } from "./files.ts";
 import { extract, page } from "./docs.ts";
-import { acted, arrived, drop, gate, pick, see, where } from "./reflexes.ts";
+import { acted, arrived, drop, gate, pick, redact, see, where } from "./reflexes.ts";
 import {
   cleanVars,
   describe,
@@ -125,6 +126,18 @@ async function readFor(need: "ref" | "page" | null, args: Record<string, unknown
 }
 
 /**
+ * The page lines around what an action lands on, for the second key: the
+ * element's neighbours, or for Enter those of the control that made it gate.
+ * Values cut (reflexes.ts redact): the judge needs the page's words, not what
+ * was typed into it.
+ */
+function around(name: string, args: Record<string, unknown>): string[] {
+  const ref =
+    typeof args.ref === "string" ? args.ref : name === "key" ? [...controls()].find(([, label]) => IRREVERSIBLE.test(label))?.[0] : undefined;
+  return ref ? near(ref, 8).map(redact) : [];
+}
+
+/**
  * Ask the human if the policy says so: the denial to hand the model, or null
  * to go ahead. relay() and batch() both come through here, so a step inside a
  * batch asks exactly as the same call made on its own would. `here` is the
@@ -146,7 +159,10 @@ async function gated(name: string, args: Record<string, unknown>, here = ""): Pr
   const off = offPlan(name, args, here);
   if (off) needs = needs ? `${needs} — ${off.why}` : off.asked;
   if (!needs) return null;
-  if (!(await askPanel(needs))) return DENIED;
+  // Only once the gate asks anyway, so the second key can add a reason to look
+  // and never a prompt of its own.
+  const second = await secondKey(needs, around(name, args));
+  if (!(await askPanel(needs, undefined, second))) return DENIED;
   if (off) allowHost(off.host);
   // Watch mode asks about a whole class of action, so approving one has to
   // stand for the rest of the task or it asks on every keystroke and nobody

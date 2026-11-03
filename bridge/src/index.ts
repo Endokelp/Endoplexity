@@ -6,6 +6,7 @@ import type { ChildProcess } from "node:child_process";
 import { WebSocketServer, type WebSocket } from "ws";
 import { authorize, authorizeMcp, ALLOWED_ORIGIN } from "./auth.ts";
 import { handleMcp, pageNow, report, resetSteps, runSkill, setMode, steps, stop } from "./mcp.ts";
+import { guard } from "./second.ts";
 import { cleanOrder, handoffPrompt, limitOf, nextEngine } from "./failover.ts";
 import {
   answer,
@@ -52,6 +53,8 @@ const FIXTURES: Record<string, URL> = {
   "/fixtures/cookie.html": new URL("../test/fixtures/cookie.html", import.meta.url),
   // Shapes drawn on a canvas, with no element of their own: See's page.
   "/fixtures/canvas.html": new URL("../test/fixtures/canvas.html", import.meta.url),
+  // A page that tells the agent to confirm a transfer: the second key's page.
+  "/fixtures/inject.html": new URL("../test/fixtures/inject.html", import.meta.url),
 };
 
 const token = loadToken();
@@ -141,8 +144,12 @@ let runningModel = "";
  *  - `order` / `spent`: the user's failover order, and the engines that ran
  *    out on this task.
  *  - `stopping`: the human pressed Stop, so nothing carries the run on.
+ *  - `ownWords`: the user's own words alone, without the page line and the files
+ *    the panel puts in front of a task. The second key reads this: a page
+ *    title is page text, and the judge is told the task is the user's.
  */
 let asked: string[] = [];
+let ownWords: string[] = [];
 let queued: string[] = [];
 let order: string[] = [];
 let spent: string[] = [];
@@ -238,12 +245,17 @@ function startTask(
   if (!resuming && !isRetry && !handoff && !takeover) begin(typeof words === "string" && words.trim() ? words : prompt);
   // Phase 18's state follows the same rule. A skill's hand-off keeps the
   // replay's steps; a delivered message is already in `asked`.
+  const typed = typeof words === "string" && words.trim() ? words : prompt;
   if (!resuming && !isRetry && !takeover) {
     asked = [asking ?? prompt];
     queued = [];
     spent = [];
-    if (!handoff) (resetSteps(), resetSeeSpent());
-  } else if (resuming && !steered) asked.push(`Then the user replied:\n${prompt}`);
+    // A skill's hand-off keeps the skill's task, set by startSkill.
+    if (!handoff) (resetSteps(), resetSeeSpent(), (ownWords = [typed]));
+  } else if (resuming && !steered) {
+    asked.push(`Then the user replied:\n${prompt}`);
+    ownWords.push(`Then the user replied: ${typed}`);
+  }
   if (!isRetry && !takeover && !steered) stopping = false;
   if (fallbacks !== undefined) order = cleanOrder(fallbacks);
 
@@ -366,6 +378,7 @@ function steer(text: unknown) {
   if (typeof text !== "string" || !text.trim()) return;
   if (!running) return void sendPanel({ type: "note", text: "nothing is running: Run or Reply to send it" });
   asked.push(`While it ran, the user said: ${text}`);
+  ownWords.push(`While it ran, the user said: ${text}`);
   if (running.steer?.(text)) return void sendPanel({ type: "note", text: `sent to the running agent (${runningModel})` });
   queued.push(text);
   sendPanel({ type: "note", text: `queued: ${runningModel || "the agent"} reads it when this run ends` });
@@ -395,6 +408,7 @@ async function startSkill(id: unknown, vars: unknown, model: unknown, fallbacks:
   session = null;
   begin(task);
   resetSteps();
+  ownWords = [task];
   queued = [];
   spent = [];
   stopping = false;
@@ -431,6 +445,19 @@ async function startSkill(id: unknown, vars: unknown, model: unknown, fallbacks:
   // Asked without the page: an engine taking over after a limit gets the page
   // as it is by then, and was sent this one as well (seen live, P18).
   startTask(told(r.page), model, { handoff: true, asking: told(undefined) });
+}
+
+/**
+ * The panel's Second key setting for the task about to start. Only an explicit
+ * false turns it off: it adds a verdict to a prompt the gate shows anyway and
+ * can approve nothing, so a garbled setting costs a CLI call, never a check.
+ * The engine is read when the gate asks, since a failover changes it; a replay
+ * runs none, so it judges as for the model it would hand over to.
+ */
+let secondOn = false;
+function guardRun(setting: unknown, model: unknown) {
+  secondOn = setting !== false;
+  guard(secondOn ? () => ({ engine: runningModel || String(model ?? ""), task: ownWords }) : null);
 }
 
 /**
@@ -489,15 +516,16 @@ wss.on("connection", (ws) => {
     else if (msg.type === "task") {
       // The mode is the human's, so it arrives with the task and is enforced in
       // the bridge. It is never in a prompt and the model never sees it, so
-      // nothing the agent says can widen its own permissions. The plan lock
-      // rides with it, for the same reason.
+      // nothing the agent says can widen its own permissions. The plan lock and
+      // the second key ride with it, for the same reason.
       setMode(msg.mode, msg.plan);
+      guardRun(msg.secondKey, msg.model);
       // The failover order is the human's too, and failover.ts admits only
       // models MODELS knows, so it can name no binary the dropdown cannot.
       startTask(msg.prompt, msg.model, { resume: msg.resume === true, words: msg.task, fallbacks: msg.fallbacks ?? [] });
     } else if (msg.type === "run-skill") {
       // Same rule as a task: the mode is the human's and arrives with the run.
-      if (!running) setMode(msg.mode, msg.plan);
+      if (!running) (setMode(msg.mode, msg.plan), guardRun(msg.secondKey, msg.model));
       void startSkill(msg.id, msg.vars, msg.model, msg.fallbacks);
     } else if (msg.type === "steer") steer(msg.text);
     else if (msg.type === "proposal-reply") {
