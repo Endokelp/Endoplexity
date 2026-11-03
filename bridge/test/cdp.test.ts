@@ -340,3 +340,17 @@ test("an attachment a torn-down panel left behind is released, and DevTools' is 
   assert.equal(cdp.state().tabId, null, "a refused attach leaves nothing half-attached");
   held.clear();
 });
+
+test("attaching turns on focus emulation, so a page behind other windows still draws and takes input", async () => {
+  // Without it a covered window's page is `hidden`: every mouse event waited
+  // ~5 s for a frame and a hover landed after the read meant to show it. A
+  // user's self-test failed exactly that behind a maximized DevTools window.
+  fail = () => null;
+  calls.length = 0;
+  await cdp.attach(1);
+  assert.ok(
+    calls.some((c) => c.sessionId === "" && c.method === "Emulation.setFocusEmulationEnabled"),
+    "the main session must be told to emulate focus on attach",
+  );
+  await cdp.detach();
+});

@@ -205,6 +205,12 @@ export async function attach(target, { open = true } = {}) {
   // belong to rather than under none.
   mainDoc = (await send(MAIN, "Page.getFrameTree").catch(() => null))?.frameTree?.frame?.loaderId ?? null;
   setupSession(MAIN);
+  // A covered or minimized window makes the page `hidden`: it stops making
+  // frames, every mouse event waits ~5 s for one, and a hover can land after
+  // the read meant to show it (a user's self-test, behind a maximized DevTools
+  // window). Focus emulation keeps the driven page visible, as Playwright does
+  // for every page it drives. Measured: hover 5.4 s -> 0.38 s.
+  await send(MAIN, "Emulation.setFocusEmulationEnabled", { enabled: true }).catch(() => {});
 
   const tab = await chrome.tabs.get(id);
   console.log(`endo: attached to tab ${id} — ${tab.url}`);
@@ -803,7 +809,7 @@ export async function scroll(direction = "down", ref, options) {
   const sessionId = ref ? resolve(ref).sessionId : MAIN;
   // The frame's own viewport when a ref names one — an OOPIF's metrics are its
   // own, so a wheel inside it must be aimed and sized in that space.
-  const { cssLayoutViewport: view } = await send(sessionId, "Page.getLayoutMetrics");
+  const { cssLayoutViewport: view, cssVisualViewport: from, cssContentSize: size } = await send(sessionId, "Page.getLayoutMetrics");
   const at = ref ? await centreOf(ref) : { x: view.clientWidth / 2, y: view.clientHeight / 2 };
   // Just under a screenful, the way Page Down behaves: a full one can step over
   // a lazy-load trigger, and the overlap keeps the model oriented between reads.
@@ -818,6 +824,15 @@ export async function scroll(direction = "down", ref, options) {
     buttons: 0,
   });
   console.log(`endo: scroll ${direction} ${deltaY}px at ${Math.round(at.x)},${Math.round(at.y)}`);
+  // The scroll lands on the compositor's next frame, not when the event is
+  // acked: ~0.1 s normally, ~1 s in a minimized window, which draws one frame a
+  // second (measured). Waited out by the document's offset so the read after
+  // sees what the scroll loaded. Not at the edge already: nothing would move.
+  // ponytail: the document only; a ref-scoped scroll is not waited for.
+  const edge = deltaY > 0 ? size.height - from.pageY - from.clientHeight < 1 : from.pageY < 1;
+  for (const t0 = Date.now(); !ref && !edge && Date.now() - t0 < 1500; await sleep(50)) {
+    if ((await send(MAIN, "Page.getLayoutMetrics")).cssVisualViewport.pageY !== from.pageY) break;
+  }
   return after(options);
 }
 

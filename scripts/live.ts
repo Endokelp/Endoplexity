@@ -115,11 +115,14 @@ if (cmd === "launch") {
       // without these its timers (Settle's quiet window, the ping) are throttled.
       "--disable-background-timer-throttling",
       "--disable-renderer-backgrounding",
-      "--disable-backgrounding-occluded-windows",
       // Windows marks a covered window occluded, the page goes `hidden`, it
       // stops producing frames, and every Input.dispatchMouseEvent then waits
       // ~5s for one (measured). A hover self-test hung on exactly that.
-      "--disable-features=CalculateNativeWinOcclusion",
+      // ENDO_LIVE_OCCLUSION=1 keeps Chrome's own behaviour, which is what a
+      // user's Chrome has: their self-test failed hover behind a DevTools window.
+      ...(process.env.ENDO_LIVE_OCCLUSION
+        ? []
+        : ["--disable-backgrounding-occluded-windows", "--disable-features=CalculateNativeWinOcclusion"]),
       "--window-size=1280,900",
       "http://127.0.0.1:8787/fixtures/host.html",
     ],
