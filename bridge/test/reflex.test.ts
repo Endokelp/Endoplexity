@@ -416,7 +416,8 @@ test("the training corpus is only rows with a truth the row asked about", async 
     { ref: "@f0e2", line: '@f0e2 [button] "Submit"', p: 0.6 },
   ]);
   pick("save", [{ ref: "@f0e1", line: '@f0e1 [button] "Save"', p: 0.9 }]);
-  await until(() => seen.length === 2, "two Pick rows asked");
+  // Logged, not just asked: a row joins the log when its answer arrives.
+  await until(() => panelState().log.rows === 2, "two Pick rows logged");
   acted("@f0e2"); // the first row's o2; the second row never offered it
   const rows = labelled();
   assert.equal(rows.length, 1);
