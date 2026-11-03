@@ -248,6 +248,17 @@ function showMode() {
   whereMode.className = modeEl.value === "normal" ? "" : modeEl.value;
 }
 
+/** Save text as a file without the downloads permission: a temporary link, clicked. */
+function saveFile(name, text) {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+  link.download = name;
+  link.click();
+  // Not in the same tick: revoking before the download has read the blob can
+  // cancel it.
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+}
+
 /** Returns false if there was nowhere to send it, so callers can bail. */
 function send(payload) {
   if (socket?.readyState !== WebSocket.OPEN) {
@@ -534,6 +545,7 @@ function connect() {
     if (msg.type === "file-failed") return void ui.note(`could not attach — ${msg.error}`, true);
     if (msg.type === "reflex-failed") return void ui.note(msg.error, true);
     if (msg.type === "gate") return void showGate(msg);
+    if (msg.type === "audit") return void saveFile(msg.name, msg.markdown);
     if (msg.type === "skills") return void skillsSheet.apply(msg);
     if (msg.type === "proposals") return void proposals.apply(msg);
     // What an approved proposal wrote, so Save is not a card that just vanishes.
@@ -1083,6 +1095,8 @@ planEl.addEventListener("input", () => {
   chrome.storage.local.set({ plan: planRaw });
   showMode();
 });
+// send() already says "not connected" when there is no bridge to ask.
+document.getElementById("audit-export").addEventListener("click", () => send({ type: "audit" }));
 // Only a model the dropdown still offers. Assigning one it does not (`sonnet`,
 // from before the ids were spelled out) leaves the <select> on no option at all,
 // so every Run would send "" and be refused as an unknown model.

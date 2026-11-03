@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 import type { ChildProcess } from "node:child_process";
 import { WebSocketServer, type WebSocket } from "ws";
 import { authorize, authorizeMcp, ALLOWED_ORIGIN } from "./auth.ts";
-import { handleMcp, pageNow, report, resetSteps, runSkill, setMode, steps, stop } from "./mcp.ts";
+import { handleMcp, modeNow, pageNow, report, resetSteps, runSkill, setMode, steps, stop } from "./mcp.ts";
+import { planOf } from "./gate.ts";
 import { guard } from "./second.ts";
+import { auditMarkdown, initAudit, resetAudit } from "./audit.ts";
 import { cleanOrder, handoffPrompt, limitOf, nextEngine } from "./failover.ts";
 import {
   answer,
@@ -65,6 +67,8 @@ const wss = new WebSocketServer({ noServer: true });
 
 // The reflex layer is inert until this: tests that import mcp.ts never start it.
 initReflexes();
+// The same for the audit log, which reads the tab's URL for every action.
+initAudit();
 const pushReflexes = () => void sendPanel(panelState());
 // The sidecar runs only while a reflex is set to Laya: Off starts nothing.
 function syncLaya() {
@@ -145,8 +149,9 @@ let runningModel = "";
  *    out on this task.
  *  - `stopping`: the human pressed Stop, so nothing carries the run on.
  *  - `ownWords`: the user's own words alone, without the page line and the files
- *    the panel puts in front of a task. The second key reads this: a page
- *    title is page text, and the judge is told the task is the user's.
+ *    the panel puts in front of a task. The second key and the audit read
+ *    this: a page title is page text, and the judge is told the task is the
+ *    user's.
  */
 let asked: string[] = [];
 let ownWords: string[] = [];
@@ -251,7 +256,7 @@ function startTask(
     queued = [];
     spent = [];
     // A skill's hand-off keeps the skill's task, set by startSkill.
-    if (!handoff) (resetSteps(), resetSeeSpent(), (ownWords = [typed]));
+    if (!handoff) (resetSteps(), resetSeeSpent(), resetAudit(), (ownWords = [typed]));
   } else if (resuming && !steered) {
     asked.push(`Then the user replied:\n${prompt}`);
     ownWords.push(`Then the user replied: ${typed}`);
@@ -408,6 +413,7 @@ async function startSkill(id: unknown, vars: unknown, model: unknown, fallbacks:
   session = null;
   begin(task);
   resetSteps();
+  resetAudit();
   ownWords = [task];
   queued = [];
   spent = [];
@@ -528,6 +534,12 @@ wss.on("connection", (ws) => {
       if (!running) (setMode(msg.mode, msg.plan), guardRun(msg.secondKey, msg.model));
       void startSkill(msg.id, msg.vars, msg.model, msg.fallbacks);
     } else if (msg.type === "steer") steer(msg.text);
+    else if (msg.type === "audit") {
+      // What this task did, as a file the panel saves. The engines are the ones
+      // that ran out, then the one that ran last.
+      const engines = [...new Set([...spent, runningModel].filter(Boolean))];
+      ws.send(JSON.stringify({ type: "audit", ...auditMarkdown({ task: ownWords, engines, mode: modeNow(), ...planOf(), second: secondOn }) }));
+    }
     else if (msg.type === "proposal-reply") {
       // Writes only what the bridge holds for that id; `name` is a skill's
       // file name, which skills.ts reduces to [a-z0-9-].

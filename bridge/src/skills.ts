@@ -76,7 +76,8 @@ export type Skill = z.infer<typeof skillFile>;
 // A field whose value is never written down. Its var starts empty, and a replay
 // with no value for it stops at that step and hands over.
 // ponytail: a label heuristic; the accessibility tree does not say "password".
-const SECRET = /password|passcode|\bpin\b|cvc|cvv|security code|card number/i;
+// Exported for the audit log, which redacts a value typed into one the same way.
+export const SECRET = /password|passcode|\bpin\b|cvc|cvv|security code|card number/i;
 const VAR = /\{\{(\w+)\}\}/g;
 const NOTE_CAP = 500;
 const NOTES_PER_TASK = 3;

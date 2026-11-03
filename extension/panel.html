@@ -916,7 +916,7 @@
       footer details[open] summary { color: var(--text); }
       /* The disclosure opens as a sheet above the composer, so the summary row
          never jumps and the transcript is never pushed off screen. */
-      #log, #history, #reflexes, #skills, #engines, #plan {
+      #log-sheet, #history, #reflexes, #skills, #engines, #plan {
         position: fixed;
         left: 12px;
         right: 12px;
@@ -933,13 +933,8 @@
         line-height: 1.55;
         animation: rise var(--slow) var(--ease) both;
       }
-      #log {
-        max-height: 44vh;
-        overflow: auto;
-        white-space: pre-wrap;
-        color: var(--text-soft);
-        margin: 0;
-      }
+      #log-sheet { max-height: 44vh; overflow: auto; }
+      #log { white-space: pre-wrap; color: var(--text-soft); margin: 8px 0 0; }
 
       /* The Reflexes sheet: the History sheet's frame, in the UI font. */
       #reflexes, #skills, #engines, #plan {
@@ -1304,7 +1299,10 @@
       </details>
       <details>
         <summary><svg class="icon" aria-hidden="true"><use href="#i-terminal" /></svg>Log</summary>
-        <pre id="log"></pre>
+        <div id="log-sheet">
+          <button id="audit-export">Export audit (Markdown)</button>
+          <pre id="log"></pre>
+        </div>
       </details>
       <details id="reflexes-open">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-live" /></svg>Reflexes</summary>

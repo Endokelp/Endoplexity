@@ -89,8 +89,11 @@ export function cleanPlan(raw: unknown): string[] {
   return [...new Set(hosts)].slice(0, 20);
 }
 
-export const setPlan = (raw: unknown) => void (plan = cleanPlan(raw));
-export const planOf = (): readonly string[] => plan;
+// The list as the user drew it, kept apart for the audit: a host approved
+// mid-run is the human's call on that run, not part of the plan they wrote.
+let drawn: string[] = [];
+export const setPlan = (raw: unknown) => void (plan = drawn = cleanPlan(raw));
+export const planOf = () => ({ drawn, approved: plan.filter((host) => !drawn.includes(host)) });
 /** The human approved acting on `host`: it stays allowed for the rest of the task. */
 export const allowHost = (host: string) => void (plan = plan.length && host ? [...plan, host] : plan);
 

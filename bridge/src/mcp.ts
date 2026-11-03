@@ -6,6 +6,7 @@ import { callPanel, askPanel, panelConnected, sendPanel } from "./relay.ts";
 import { allowHost, check, IRREVERSIBLE, offPlan, planOf, reads, rememberApproval, resetApprovals, setPlan, type Mode } from "./gate.ts";
 import { remember, labelFor, labelsOf, find, hasPage, near, controls } from "./page.ts";
 import { secondKey } from "./second.ts";
+import { audited, auditing, gateDecided } from "./audit.ts";
 import { keys, resolve } from "./files.ts";
 import { extract, page } from "./docs.ts";
 import { acted, arrived, drop, gate, pick, redact, see, where } from "./reflexes.ts";
@@ -24,6 +25,7 @@ import {
   proposeNote,
   replayedStep,
   replaying,
+  SECRET,
   start,
   stopped,
   targetOf,
@@ -97,6 +99,9 @@ export function setMode(next: unknown, plan?: unknown): void {
   setPlan(plan);
 }
 
+/** The mode as the gate applies it, for the audit's header. */
+export const modeNow = (): string => mode ?? "normal";
+
 // Tools whose result is not a page: everything else in tools.js hands back the
 // page it produced, and only pages may reach remember().
 const NO_PAGE = new Set(["type", "tabs"]);
@@ -141,7 +146,7 @@ function around(name: string, args: Record<string, unknown>): string[] {
  * Ask the human if the policy says so: the denial to hand the model, or null
  * to go ahead. relay() and batch() both come through here, so a step inside a
  * batch asks exactly as the same call made on its own would. `here` is the
- * tab's URL before the call, read only while a plan needs it.
+ * tab's URL before the call, read only while a plan or the audit needs it.
  */
 async function gated(name: string, args: Record<string, unknown>, here = ""): Promise<string | null> {
   const need = reads(name, args, mode);
@@ -162,7 +167,9 @@ async function gated(name: string, args: Record<string, unknown>, here = ""): Pr
   // Only once the gate asks anyway, so the second key can add a reason to look
   // and never a prompt of its own.
   const second = await secondKey(needs, around(name, args));
-  if (!(await askPanel(needs, undefined, second))) return DENIED;
+  const approved = await askPanel(needs, undefined, second);
+  gateDecided({ asked: needs, second, approved });
+  if (!approved) return DENIED;
   if (off) allowHost(off.host);
   // Watch mode asks about a whole class of action, so approving one has to
   // stand for the rest of the task or it asks on every keystroke and nobody
@@ -260,15 +267,22 @@ export function resetSteps(): void {
 }
 export const steps = (): string[] => [...(dropped ? [`(${dropped} earlier steps not shown)`] : []), ...actions];
 
-/** `on` is what the step acted on, read before it ran: refs die with the page. */
-function logStep(name: string, on: string, outcome: string): void {
+/**
+ * `on` is what the step acted on, read before it ran: refs die with the page.
+ * The audit gets the same line plus the tab and the value; the hand-off
+ * summary never gets a value.
+ */
+function logStep(name: string, on: string, outcome: string, args: Record<string, unknown> = {}, here = ""): void {
   if (!ACTIONS.has(name)) return;
-  actions.push(`${actions.length + dropped + 1}. ${name}${on && ` ${on}`}: ${outcome.split("\n")[0].slice(0, 160)}`);
+  const result = outcome.split("\n")[0].slice(0, 160);
+  actions.push(`${actions.length + dropped + 1}. ${name}${on && ` ${on}`}: ${result}`);
   if (actions.length > STEPS_KEPT) (actions.shift(), dropped++);
+  const value = name === "type" ? args.text : name === "select" ? args.value : undefined;
+  if (auditing()) audited({ url: here, tool: name, on, result, ...(typeof value === "string" && { value }) }, SECRET.test(on));
 }
 
-/** The tab's URL before an action, when a plan needs it; otherwise not read. */
-const urlNow = async (): Promise<string> => (planOf().length ? (await where()).url : "");
+/** The tab's URL before an action, when a plan or the audit needs it; otherwise not read. */
+const urlNow = async (): Promise<string> => (auditing() || planOf().drawn.length ? (await where()).url : "");
 const onWhat = (args: Record<string, unknown>): string => {
   const label = typeof args.ref === "string" ? labelFor(args.ref) : undefined;
   return String(label ?? args.url ?? args.name ?? args.direction ?? "").slice(0, 200);
@@ -278,7 +292,7 @@ async function relayNow(name: string, args: Record<string, unknown>, task: numbe
   const on = onWhat(args);
   const here = ACTIONS.has(name) ? await urlNow() : "";
   const res = await actNow(name, args, task, here);
-  logStep(name, on, res.isError ? res.content[0].text : "ok");
+  logStep(name, on, res.isError ? res.content[0].text : "ok", args, here);
   return res;
 }
 
@@ -372,19 +386,19 @@ async function batchNow(steps: Step[], task: number): Promise<Result> {
     const on = onWhat(args);
     if (denied) {
       log.push(`${what}: ${denied}`);
-      logStep(name, on, denied);
+      logStep(name, on, denied, args, here);
       stopped = true;
       break;
     }
     try {
       const label = typeof args.ref === "string" ? labelFor(args.ref) : undefined;
       log.push(`${what}: ${await callPanel(name, { ...args, quiet: true }, label)}`);
-      logStep(name, on, "ok");
+      logStep(name, on, "ok", args, here);
       track(name, args, at);
     } catch (err) {
       const { message, page: fresh } = err as Error & { page?: string };
       log.push(`${what}: error: ${message}`);
-      logStep(name, on, `error: ${message}`);
+      logStep(name, on, `error: ${message}`, args, here);
       page = fresh;
       stopped = true;
       break;
