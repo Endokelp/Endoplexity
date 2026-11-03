@@ -247,6 +247,29 @@ export async function navigate(url) {
 }
 
 /**
+ * A page that loaded and reads as nothing. Measured 2026-11-02: stackoverflow
+ * in a fresh profile is Cloudflare's "Just a moment..." check first, an empty
+ * accessibility tree that reloads itself once and only then navigates to the
+ * real page, ~2.8 s in all, and navigate handed the model the empty string.
+ * Waiting for one more load caught the check's own reload, so this waits for
+ * the page to read as something. Each read forgets the last: the model has
+ * seen none of them, so a patch against an empty one would describe nothing it
+ * holds. Failing that, the result says what the tab says instead of nothing.
+ * ponytail: navigate only, where it was seen; a click into one would want it too.
+ */
+export async function emptyPage(options) {
+  for (const t0 = Date.now(); Date.now() - t0 < 8_000; ) {
+    await new Promise((r) => setTimeout(r, 500));
+    forget();
+    const again = await snapshot(options);
+    if (again.trim()) return again;
+  }
+  // Collapsed: a title is the page's text, and a newline in it could forge a line.
+  const title = String((await chrome.tabs.get(tabId)).title ?? "").replace(/\s+/g, " ").trim();
+  return `(the page "${title}" has nothing to read yet: a browser check or a redirect may still be running. Read it again with snapshot.)`;
+}
+
+/**
  * Walk the tab's own session history and return the page that lands.
  *
  * Page.getNavigationHistory + navigateToHistoryEntry, NOT chrome.tabs.goBack.

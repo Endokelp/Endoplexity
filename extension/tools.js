@@ -20,7 +20,8 @@ const TOOLS = {
   snapshot: ({ full, from, peek }) => cdp.snapshot({ full, from, peek }),
   navigate: async ({ url, full }) => {
     await cdp.navigate(url);
-    return cdp.snapshot({ full });
+    const page = await cdp.snapshot({ full });
+    return page.trim() ? page : cdp.emptyPage({ full });
   },
   // `quiet` never comes from the model: the bridge sets it on batch steps, see
   // after() in cdp.js for why those must not read the page.
