@@ -4,7 +4,7 @@ import { runTool } from "./tools.js";
 import * as ui from "./transcript.js";
 import { fresh, pack, startNew, titleOf } from "./sessions.js";
 import { block as mentionBlock, label as mentionLabel } from "./mentions.js";
-import { initEngines } from "./engines.js";
+import { initEngines, splitPlan } from "./engines.js";
 import { initReflexes } from "./reflexes.js";
 import { initProposals, initSkills } from "./skills.js";
 import { block as filesBlock, humanSize, toBase64 } from "./attachments.js";
@@ -241,7 +241,8 @@ function setWhere(page, state) {
 }
 
 function showMode() {
-  whereMode.textContent = modeEl.selectedOptions[0].textContent;
+  const sites = splitPlan(planRaw).length;
+  whereMode.textContent = modeEl.selectedOptions[0].textContent + (sites ? ` · ${sites} site${sites === 1 ? "" : "s"}` : "");
   // Trust turns off the only safety feature there is, so it must never be
   // quietly in force — it stays on screen, coloured, the whole time it is set.
   whereMode.className = modeEl.value === "normal" ? "" : modeEl.value;
@@ -270,6 +271,10 @@ cdp.onSettle((row) => {
 
 // The failover order, set from the Engines sheet once storage has been read.
 let fallbacks = [];
+// The Plan box (allowed sites): rides on every task and run-skill, and is read
+// back from storage below.
+let planRaw = "";
+const planEl = document.getElementById("plan-sites");
 
 // Skills and proposals are bridge state too: redrawn from the last message on
 // every connect, never journalled into the chat.
@@ -595,7 +600,7 @@ async function runSkill(id, vars = {}) {
   said = [];
   await rebind(name);
   const page = await cdp.currentPage().catch(() => null);
-  if (!send({ type: "run-skill", id, vars, model: modelEl.value, mode: modeEl.value, fallbacks })) {
+  if (!send({ type: "run-skill", id, vars, model: modelEl.value, mode: modeEl.value, fallbacks, plan: splitPlan(planRaw) })) {
     return setBusy(false);
   }
   ui.user(`Run skill: ${name}`);
@@ -673,7 +678,7 @@ async function runTask(resume = false) {
     .join("\n\n");
   // The model rides along, but the bridge overrules it on a reply: a claude
   // transcript cannot be handed to cursor-agent.
-  if (!send({ type: "task", task: prompt, prompt: sent, model: modelEl.value, mode: modeEl.value, resume, fallbacks })) {
+  if (!send({ type: "task", task: prompt, prompt: sent, model: modelEl.value, mode: modeEl.value, resume, fallbacks, plan: splitPlan(planRaw) })) {
     return setBusy(false);
   }
   ui.user(prompt);
@@ -1038,11 +1043,17 @@ promptEl.addEventListener("keydown", (event) => {
   runTask(resume);
 });
 
-const stored = await chrome.storage.local.get(["model", "mode", "sessions", "fallbacks"]);
+const stored = await chrome.storage.local.get(["model", "mode", "sessions", "fallbacks", "plan"]);
 fallbacks = initEngines(document.getElementById("engines"), modelEl, stored.fallbacks, (order) => {
   fallbacks = order;
   chrome.storage.local.set({ fallbacks });
 }).order();
+if (typeof stored.plan === "string") planRaw = planEl.value = stored.plan;
+planEl.addEventListener("input", () => {
+  planRaw = planEl.value;
+  chrome.storage.local.set({ plan: planRaw });
+  showMode();
+});
 // Only a model the dropdown still offers. Assigning one it does not (`sonnet`,
 // from before the ids were spelled out) leaves the <select> on no option at all,
 // so every Run would send "" and be refused as an unknown model.

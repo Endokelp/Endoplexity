@@ -489,14 +489,15 @@ wss.on("connection", (ws) => {
     else if (msg.type === "task") {
       // The mode is the human's, so it arrives with the task and is enforced in
       // the bridge. It is never in a prompt and the model never sees it, so
-      // nothing the agent says can widen its own permissions.
-      setMode(msg.mode);
+      // nothing the agent says can widen its own permissions. The plan lock
+      // rides with it, for the same reason.
+      setMode(msg.mode, msg.plan);
       // The failover order is the human's too, and failover.ts admits only
       // models MODELS knows, so it can name no binary the dropdown cannot.
       startTask(msg.prompt, msg.model, { resume: msg.resume === true, words: msg.task, fallbacks: msg.fallbacks ?? [] });
     } else if (msg.type === "run-skill") {
       // Same rule as a task: the mode is the human's and arrives with the run.
-      if (!running) setMode(msg.mode);
+      if (!running) setMode(msg.mode, msg.plan);
       void startSkill(msg.id, msg.vars, msg.model, msg.fallbacks);
     } else if (msg.type === "steer") steer(msg.text);
     else if (msg.type === "proposal-reply") {

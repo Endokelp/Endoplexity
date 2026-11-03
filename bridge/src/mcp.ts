@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { callPanel, askPanel, panelConnected, sendPanel } from "./relay.ts";
-import { check, reads, rememberApproval, resetApprovals, type Mode } from "./gate.ts";
+import { allowHost, check, offPlan, planOf, reads, rememberApproval, resetApprovals, setPlan, type Mode } from "./gate.ts";
 import { remember, labelFor, labelsOf, find, hasPage } from "./page.ts";
 import { keys, resolve } from "./files.ts";
 import { extract, page } from "./docs.ts";
@@ -86,11 +86,14 @@ let mode: Mode | undefined;
  *
  * Clearing the approval memory here rather than from a second call in index.ts
  * is deliberate: a mode is only ever set at the start of a task, and the memory
- * is per-task, so they share one lifecycle and cannot be left out of step.
+ * is per-task, so they share one lifecycle and cannot be left out of step. The
+ * plan lock arrives with the mode for the same reason: hosts approved on one
+ * run are not approved on the next.
  */
-export function setMode(next: unknown): void {
+export function setMode(next: unknown, plan?: unknown): void {
   mode = MODES.has(next as Mode) ? (next as Mode) : undefined;
   resetApprovals();
+  setPlan(plan);
 }
 
 // Tools whose result is not a page: everything else in tools.js hands back the
@@ -124,9 +127,10 @@ async function readFor(need: "ref" | "page" | null, args: Record<string, unknown
 /**
  * Ask the human if the policy says so: the denial to hand the model, or null
  * to go ahead. relay() and batch() both come through here, so a step inside a
- * batch asks exactly as the same call made on its own would.
+ * batch asks exactly as the same call made on its own would. `here` is the
+ * tab's URL before the call, read only while a plan needs it.
  */
-async function gated(name: string, args: Record<string, unknown>): Promise<string | null> {
+async function gated(name: string, args: Record<string, unknown>, here = ""): Promise<string | null> {
   const need = reads(name, args, mode);
   const fresh = await readFor(need, args);
   let needs = check(name, args, mode, fresh);
@@ -138,8 +142,12 @@ async function gated(name: string, args: Record<string, unknown>): Promise<strin
     const extra = await gate(String(args.ref), label, needs !== null);
     needs ??= extra;
   }
+  // The plan lock asks in every mode, trust included: the user drew it.
+  const off = offPlan(name, args, here);
+  if (off) needs = needs ? `${needs} — ${off.why}` : off.asked;
   if (!needs) return null;
   if (!(await askPanel(needs))) return DENIED;
+  if (off) allowHost(off.host);
   // Watch mode asks about a whole class of action, so approving one has to
   // stand for the rest of the task or it asks on every keystroke and nobody
   // uses it twice. gate.ts ignores this in `normal`, where each irreversible
@@ -242,6 +250,9 @@ function logStep(name: string, on: string, outcome: string): void {
   actions.push(`${actions.length + dropped + 1}. ${name}${on && ` ${on}`}: ${outcome.split("\n")[0].slice(0, 160)}`);
   if (actions.length > STEPS_KEPT) (actions.shift(), dropped++);
 }
+
+/** The tab's URL before an action, when a plan needs it; otherwise not read. */
+const urlNow = async (): Promise<string> => (planOf().length ? (await where()).url : "");
 const onWhat = (args: Record<string, unknown>): string => {
   const label = typeof args.ref === "string" ? labelFor(args.ref) : undefined;
   return String(label ?? args.url ?? args.name ?? args.direction ?? "").slice(0, 200);
@@ -249,14 +260,15 @@ const onWhat = (args: Record<string, unknown>): string => {
 
 async function relayNow(name: string, args: Record<string, unknown>, task: number): Promise<Result> {
   const on = onWhat(args);
-  const res = await actNow(name, args, task);
+  const here = ACTIONS.has(name) ? await urlNow() : "";
+  const res = await actNow(name, args, task, here);
   logStep(name, on, res.isError ? res.content[0].text : "ok");
   return res;
 }
 
-async function actNow(name: string, args: Record<string, unknown>, task: number): Promise<Result> {
+async function actNow(name: string, args: Record<string, unknown>, task: number, here: string): Promise<Result> {
   acted(args.ref);
-  const denied = await gated(name, args);
+  const denied = await gated(name, args, here);
   if (denied) return { content: [{ type: "text" as const, text: denied }], isError: true };
   // An approval can arrive after Stop: the prompt stays up until answered.
   if (task !== epoch) return STOPPED;
@@ -334,7 +346,8 @@ async function batchNow(steps: Step[], task: number): Promise<Result> {
     // nothing), so each step's element is described from that page.
     if (task === epoch) await opening(name);
     const at = targetOf(args.ref);
-    const denied = task === epoch ? await gated(name, args) : null;
+    const here = task === epoch ? await urlNow() : "";
+    const denied = task === epoch ? await gated(name, args, here) : null;
     if (task !== epoch) {
       log.push(`${what}: not run — the human stopped this task`);
       stopped = true;

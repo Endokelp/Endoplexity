@@ -18,6 +18,9 @@ export function cleanOrder(stored, offered) {
   return out.slice(0, SLOTS.length);
 }
 
+/** The Plan box's raw text as the list the bridge sanitizes: commas or spaces, no empties. */
+export const splitPlan = (raw) => String(raw ?? "").split(/[\s,]+/).filter(Boolean);
+
 /** `root` is the sheet inside the footer <details>; returns the current order. */
 export function initEngines(root, modelSelect, stored, onChange) {
   const offered = [...modelSelect.options].map((o) => o.value);

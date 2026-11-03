@@ -911,7 +911,7 @@
       footer details[open] summary { color: var(--text); }
       /* The disclosure opens as a sheet above the composer, so the summary row
          never jumps and the transcript is never pushed off screen. */
-      #log, #history, #reflexes, #skills, #engines {
+      #log, #history, #reflexes, #skills, #engines, #plan {
         position: fixed;
         left: 12px;
         right: 12px;
@@ -937,7 +937,7 @@
       }
 
       /* The Reflexes sheet: the History sheet's frame, in the UI font. */
-      #reflexes, #skills, #engines {
+      #reflexes, #skills, #engines, #plan {
         max-height: 60vh;
         overflow: auto;
         font-family: var(--sans);
@@ -947,7 +947,17 @@
         scrollbar-width: thin;
         scrollbar-color: var(--line) transparent;
       }
-      #engines p { margin: 0 0 6px; font-size: var(--t-micro); color: var(--text-soft); }
+      #engines p, #plan p { margin: 0 0 6px; font-size: var(--t-micro); color: var(--text-soft); }
+      #plan-sites {
+        width: 100%;
+        height: 27px;
+        padding: 0 10px;
+        font: var(--t-meta) / 1 var(--sans);
+        color: var(--text);
+        background: var(--sink);
+        border: 1px solid var(--line-soft);
+        border-radius: 999px;
+      }
       #engines select { max-width: none; flex: 0 1 auto; border-color: var(--line-soft); }
       #reflexes select { max-width: none; flex: 0 1 auto; border-color: var(--line-soft); }
       #reflexes input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
@@ -1292,6 +1302,13 @@
       <details id="reflexes-open">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-live" /></svg>Reflexes</summary>
         <div id="reflexes"></div>
+      </details>
+      <details id="plan-open">
+        <summary><svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>Plan</summary>
+        <div id="plan">
+          <p class="rx-note">Sites this run may act on, comma separated (example.com also covers its subdomains). Leave empty for any site. Anything outside asks you first, in every mode.</p>
+          <input id="plan-sites" type="text" aria-label="Allowed sites" placeholder="example.com, shop.test" autocomplete="off" spellcheck="false" />
+        </div>
       </details>
       <details id="engines-open">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-reply" /></svg>Engines</summary>

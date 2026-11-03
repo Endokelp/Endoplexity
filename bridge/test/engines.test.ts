@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_ORDER, cleanOrder } from "../../extension/engines.js";
+import { DEFAULT_ORDER, cleanOrder, splitPlan } from "../../extension/engines.js";
 
 const offered = [...DEFAULT_ORDER, "claude-opus-5-5"];
 
@@ -26,4 +26,10 @@ test("at most three", () => {
 
 test("an empty array stays empty", () => {
   assert.deepEqual(cleanOrder([], offered), []);
+});
+
+test("the plan splits on commas and spaces and drops empties", () => {
+  assert.deepEqual(splitPlan(" a.com, b.com  c.com,, "), ["a.com", "b.com", "c.com"]);
+  assert.deepEqual(splitPlan(""), []);
+  assert.deepEqual(splitPlan(undefined), []);
 });

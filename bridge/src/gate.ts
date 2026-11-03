@@ -70,6 +70,60 @@ export function resetApprovals(): void {
   approvedTools = new Set();
 }
 
+/**
+ * The plan lock (Phase 20): the sites this run may act on, as the user listed
+ * them with the task, and the hosts they approved since. Empty is no lock.
+ * Enforced here, in every mode including trust, where Claude in Chrome's
+ * `update_plan` is a screen the model is trusted to respect.
+ */
+let plan: string[] = [];
+
+/** The panel's list as hosts: scheme, path, port, `*.` and `www.` dropped. Untrusted, so capped. */
+export function cleanPlan(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const hosts = raw.flatMap((entry) => {
+    if (typeof entry !== "string" || !entry.trim()) return [];
+    const host = hostOf(/^[a-z][a-z0-9+.-]*:\/\//i.test(entry.trim()) ? entry.trim() : `http://${entry.trim()}`);
+    return host ? [host.replace(/^(\*\.|www\.)/, "")] : [];
+  });
+  return [...new Set(hosts)].slice(0, 20);
+}
+
+export const setPlan = (raw: unknown) => void (plan = cleanPlan(raw));
+export const planOf = (): readonly string[] => plan;
+/** The human approved acting on `host`: it stays allowed for the rest of the task. */
+export const allowHost = (host: string) => void (plan = plan.length && host ? [...plan, host] : plan);
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/\.$/, "");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Does this call leave the plan? Checked against where it goes for a navigate
+ * or a new tab, and against the tab it acts on for everything else that acts,
+ * which is how a link click that left the plan is caught: its page can be read,
+ * and nothing on it is done unasked. back, forward and a plain tab switch go
+ * somewhere the bridge cannot know beforehand, so the action after them is
+ * what gets checked. `here` is the tab's URL now, "" if it could not be read,
+ * which asks: not knowing the site is not knowing it is allowed.
+ *
+ * Returns the prompt, its reason alone (for a call the gate asks about anyway)
+ * and the host an approval allows; or null.
+ */
+export function offPlan(name: string, args: Record<string, unknown>, here: string): { asked: string; why: string; host: string } | null {
+  if (!plan.length || !MUTATING.has(name) || name === "back" || name === "forward") return null;
+  const moves = name === "navigate" || name === "use_tab";
+  if (moves && typeof args.url !== "string") return null;
+  const host = hostOf(moves ? String(args.url) : here);
+  if (host && plan.some((d) => host === d || host.endsWith(`.${d}`))) return null;
+  const why = `${host || "a site that could not be read"} is outside this run's plan (${plan.join(", ")})`;
+  return { asked: `${describe(name, args, undefined)} — ${why}`, why, host };
+}
+
 // watch-mode prompt text for a mutating call, once no gate-worthy label is
 // available to quote (either the tool has no ref, or the ref's label is
 // unremarkable) — plain and honest rather than borrowing normal mode's
