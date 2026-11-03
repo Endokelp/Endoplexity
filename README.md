@@ -12,7 +12,7 @@ click, type, fill forms, move between tabs, all through your existing `claude`,
 
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-1f6f4a)](LICENSE)
 [![Node](https://img.shields.io/badge/node-24%2B-1f6f4a)](package.json)
-[![Tests](https://img.shields.io/badge/tests-156%20passing-1f6f4a)](bridge/test)
+[![Tests](https://img.shields.io/badge/tests-262%20passing-1f6f4a)](bridge/test)
 [![API key](https://img.shields.io/badge/API%20key-not%20required-1f6f4a)](#what-it-costs)
 
 <img src="docs/demo.gif" width="100%" alt="Endoplexity opening three pricing pages in separate tabs and comparing their free tiers in one table">
@@ -196,6 +196,12 @@ hit **Run**. A couple of things worth knowing right away:
 
 - `Enter` starts a fresh task. `Ctrl`/`Cmd`+`Enter` replies inside the
   current conversation instead of starting over.
+- While a task runs, `Enter` sends what you type to the running agent.
+  Claude reads it mid-run; Cursor and Codex read it as a reply the moment
+  their run ends.
+- If a model hits its usage limit, the task carries on with the next engine
+  in the **Engines** sheet, on a different CLI and on the same tab, from a
+  summary of what was done. That engine's vendor then receives the page.
 - Type `@` in the box to hand the agent another tab you have open.
 - A fresh Run always attaches to whichever tab you're currently looking at,
   so open the page you want it working on *before* you press Run.
@@ -279,7 +285,7 @@ a full page once and then only the lines that changed afterward: 119,856 →
 ## Status
 
 Early. `v0.0.1`, and honest about it. The tool layer, approval gate, session
-continuity, and panel are all built and tested: **245 unit tests**, plus an
+continuity, and panel are all built and tested: **262 unit tests**, plus an
 in-panel self-test that drives the real CDP layer against a cross-origin
 fixture (run `await endo.selftest()` in the panel's own console).
 
@@ -295,13 +301,11 @@ Known gaps, stated rather than hidden:
   click-then-click flow rather than the `select` tool.
 - `chrome://` pages and the Web Store can't be driven, since Chrome refuses
   the debugger there.
-- After a lot of navigation, dead out-of-process iframe sessions can leave a
-  stray line of noise in a snapshot.
 
 ## Development
 
 ```bash
-npm test     # 245 tests, node:test, no framework, no build step
+npm test     # 262 tests, node:test, no framework, no build step
 npm start    # run the bridge in the foreground to watch its log
 node scripts/live.ts launch   # the panel in Chrome for Testing, driven from a terminal
 ```
