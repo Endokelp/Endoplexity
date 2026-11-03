@@ -274,9 +274,17 @@ const skillsSheet = initSkills(document.getElementById("skills"), send, runSkill
 });
 const proposals = initProposals(document.getElementById("proposals"), send);
 
-function showGate({ id, action }) {
+// The Obstacle reflex reuses the gate for "solve this, then continue", so the
+// buttons can carry its words; the icons stay.
+function gateLabels(ok = "Approve", no = "Deny") {
+  document.getElementById("gate-approve-text").textContent = ok;
+  document.getElementById("gate-deny-text").textContent = no;
+}
+
+function showGate({ id, action, ok, no }) {
   pendingGateId = id;
   gateAction.textContent = action;
+  gateLabels(ok || undefined, no || undefined);
   gate.classList.add("show");
   ui.gateRow(action);
 }
@@ -284,6 +292,7 @@ function showGate({ id, action }) {
 function hideGate() {
   pendingGateId = null;
   gate.classList.remove("show");
+  gateLabels();
 }
 
 /** Approve/Deny share this — only the boolean differs. */

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setPanel, dropPanel, settle, callPanel, panelConnected, sendPanel } from "../src/relay.ts";
+import { setPanel, dropPanel, settle, settleGate, callPanel, askPanel, panelConnected, sendPanel } from "../src/relay.ts";
 
 // Enough of a WebSocket for the relay: it only ever reads readyState and sends.
 function fakePanel() {
@@ -73,5 +73,22 @@ test("ignores an answer to a call that no longer exists", () => {
   setPanel(panel as never);
   // A late reply after a timeout must not throw or resolve anything.
   assert.doesNotThrow(() => settle({ id: 9999, ok: true, value: "too late" }));
+  dropPanel(panel as never);
+});
+
+// The Obstacle card asks the human to solve something, not to allow it, so it
+// renames the buttons; the answer is still the gate's yes or no.
+test("a gate can rename its buttons, and one that does not sends no labels", async () => {
+  const panel = fakePanel();
+  setPanel(panel as never);
+  const solved = askPanel("solve the captcha", { ok: "Continue", no: "Stop" });
+  const plain = askPanel("click Submit");
+  assert.equal(panel.sent[0].ok, "Continue");
+  assert.equal(panel.sent[0].no, "Stop");
+  assert.ok(!("ok" in panel.sent[1]) && !("no" in panel.sent[1]));
+  settleGate({ id: panel.sent[0].id as number, approved: true });
+  settleGate({ id: panel.sent[1].id as number, approved: false });
+  assert.equal(await solved, true);
+  assert.equal(await plain, false);
   dropPanel(panel as never);
 });

@@ -122,7 +122,7 @@ export function callPanel(
  * Denies immediately with no panel connected, and denies on a 60s timeout —
  * silence is not consent, and a stuck task is worse than an over-cautious one.
  */
-export function askPanel(action: string): Promise<boolean> {
+export function askPanel(action: string, labels?: { ok: string; no: string }): Promise<boolean> {
   if (!panelConnected()) return Promise.resolve(false);
   const id = ++gateSeq;
   return new Promise<boolean>((resolve) => {
@@ -131,7 +131,8 @@ export function askPanel(action: string): Promise<boolean> {
       resolve(false);
     }, GATE_TIMEOUT_MS);
     gatePending.set(id, { resolve, timer });
-    panel!.send(JSON.stringify({ type: "gate", id, action }));
+    // `labels` only rename the buttons: an answer is still approved or not.
+    panel!.send(JSON.stringify({ type: "gate", id, action, ...labels }));
   });
 }
 

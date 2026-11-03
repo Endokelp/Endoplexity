@@ -260,7 +260,11 @@ export async function arrived(page: string, alive: () => boolean): Promise<{ tex
   const how = `Obstacle reflex, ${d.backend}, p=${d.p}`;
   if (d.choice === "login" || d.choice === "captcha") {
     const what = d.choice === "login" ? "a login wall" : "a captcha";
-    const ok = await askPanel(`this page looks like ${what} (${how}). Deal with it yourself in the tab, then Approve to let the agent carry on. Deny stops here.`);
+    // Continue, not Approve: the human solved something rather than allowed it.
+    const ok = await askPanel(
+      `this page looks like ${what} (${how}). Solve it yourself in the tab, then press Continue and the agent carries on from the page as it is then. Stop ends the task here.`,
+      { ok: "Continue", no: "Stop" },
+    );
     if (!ok) return { text: `${page}\n\nblocked — the page showed ${what} and the human stopped here. Do not retry; report it.`, isError: true };
     if (!alive()) return null;
     try {
