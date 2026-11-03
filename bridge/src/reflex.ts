@@ -233,6 +233,7 @@ export async function ask(
       // abstains the same way as one that never answers.
       signal: AbortSignal.timeout(budget),
     });
+    heard(p, res.status);
     if (!res.ok) return null;
     const body = (await res.json()) as { answers?: Record<string, { probabilities?: unknown }> };
     const out: Record<string, Probs> = {};
@@ -283,6 +284,7 @@ export async function askBox(
       }),
       signal: AbortSignal.timeout(p.budget),
     });
+    heard(p, res.status);
     if (!res.ok) return null;
     const body = (await res.json()) as any;
     const present = body?.answers?.present?.noul;
@@ -511,9 +513,22 @@ export function review(limit = 10) {
 
 export const logSize = () => ({ rows: rows.length, bytes });
 
+// The last refusal of the key itself, by the base it came from: a gateway
+// account without credit answers 403 to every Jev request, and an abstaining
+// reflex is otherwise silent, so the panel said "key saved" while See did
+// nothing (seen live, P19, on Vercel's free tier).
+let refused: { base: string; status: number } | null = null;
+function heard(p: Provider, status: number): void {
+  if (status === 401 || status === 402 || status === 403) refused = { base: p.base, status };
+  else if (status < 400 && refused?.base === p.base) refused = null;
+}
+
 function jevStatus(): { ready: boolean; note: string } {
   if (!readJevKey()) return { ready: false, note: "needs a key" };
   if (!settings?.jevAccepted) return { ready: false, note: "accept the disclosure first" };
+  if (refused && refused.base === provider("jev")?.base) {
+    return { ready: true, note: `key saved, but Jev refused it (${refused.status}): check the key, or the account's credit` };
+  }
   return { ready: true, note: "key saved" };
 }
 

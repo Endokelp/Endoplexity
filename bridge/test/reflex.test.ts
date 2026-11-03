@@ -437,3 +437,14 @@ test("Laya serves the user's fine-tune once one was kept, and the base otherwise
     else process.env.ENDO_HOME = was;
   }
 });
+
+test("a key Jev refuses (no credit) says so in the panel, and a later answer clears it", async () => {
+  saveSettings({ pick: { state: "shadow", backend: "jev" }, jevAccepted: true });
+  reply = () => ({ status: 403, json: { error: { message: "Free tier users do not have access to this model." } } });
+  assert.equal(await ask(provider(), "s", Q), null);
+  // provider() in this file is a stand-in on the same base as the real one.
+  assert.match(panelState().backends.jev.note, /refused it \(403\)/);
+  reply = answering((k) => Object.fromEntries(k.map((x) => [x, 1])));
+  assert.ok(await ask(provider(), "s", Q));
+  assert.equal(panelState().backends.jev.note, "key saved");
+});
