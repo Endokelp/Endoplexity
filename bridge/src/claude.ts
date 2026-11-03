@@ -4,7 +4,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
-const CONFIG_PATH = fileURLToPath(new URL("../../.endo-mcp.json", import.meta.url));
+// ENDO_MCP_CONFIG: a second bridge (a live check on another port) writes its
+// own, and leaves the file the user's bridge wrote, and its runs read, alone.
+const CONFIG_PATH = process.env.ENDO_MCP_CONFIG ?? fileURLToPath(new URL("../../.endo-mcp.json", import.meta.url));
 
 /**
  * Habits real runs paid for, corrected up front. Each costs ~20 tokens here —

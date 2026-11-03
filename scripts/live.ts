@@ -21,7 +21,7 @@
  * tab is the same document and code, not the same container.
  */
 import { spawn } from "node:child_process";
-import { readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -101,7 +101,17 @@ if (cmd === "launch") {
     } catch {}
   }
   const profile = join(tmpdir(), `endo-live-${Date.now()}`);
-  const ext = resolve(arg ?? join(REPO, "extension"));
+  let ext = resolve(arg ?? join(REPO, "extension"));
+  // ENDO_BRIDGE_PORT: drive a second bridge, not the user's on 8787, so their
+  // own Chrome's panel can never be the one a run here acts through. The
+  // extension dials 8787, so a copy dials this port instead.
+  if (process.env.ENDO_BRIDGE_PORT) {
+    const copy = `${profile}-ext`;
+    cpSync(ext, copy, { recursive: true });
+    const panelJs = join(copy, "panel.js");
+    writeFileSync(panelJs, readFileSync(panelJs, "utf8").replace("ws://127.0.0.1:8787", `ws://127.0.0.1:${process.env.ENDO_BRIDGE_PORT}`));
+    ext = copy;
+  }
   const child = spawn(
     chrome(),
     [

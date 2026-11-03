@@ -42,7 +42,7 @@ if (!model || !label || !task || (model !== "replay" && !Object.hasOwn(MODELS, m
   process.exit(2);
 }
 
-const mcpUrl = JSON.parse(readFileSync(new URL(".endo-mcp.json", REPO), "utf8")).mcpServers.endo.url;
+const mcpUrl = JSON.parse(readFileSync(process.env.ENDO_MCP_CONFIG ?? new URL(".endo-mcp.json", REPO), "utf8")).mcpServers.endo.url;
 
 /** Direct MCP call, so the harness can read and reset the browser itself. */
 async function tool(name: string, args: Record<string, unknown> = {}) {
