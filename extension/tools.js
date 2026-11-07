@@ -16,47 +16,53 @@ import * as cdp from "./cdp.js";
 // the prose with the page instead of paying a second turn to re-read it. Acting
 // tools deliberately do not: they run mid-form, where body text is dead weight
 // that every later turn re-sends.
-const TOOLS = {
-  snapshot: ({ full, from, peek }) => cdp.snapshot({ full, from, peek }),
+// A function of the lane's own copy of cdp.js (Phase 21: one per lane).
+const TOOLS = (c) => ({
+  snapshot: ({ full, from, peek }) => c.snapshot({ full, from, peek }),
   navigate: async ({ url, full }) => {
-    await cdp.navigate(url);
-    const page = await cdp.snapshot({ full });
-    return page.trim() ? page : cdp.emptyPage({ full });
+    await c.navigate(url);
+    const page = await c.snapshot({ full });
+    return page.trim() ? page : c.emptyPage({ full });
   },
   // `quiet` never comes from the model: the bridge sets it on batch steps, see
   // after() in cdp.js for why those must not read the page.
-  click: ({ ref, quiet }) => cdp.click(ref, { quiet }),
+  click: ({ ref, quiet }) => c.click(ref, { quiet }),
   type: async ({ ref, text }) => {
-    await cdp.type(ref, text);
+    await c.type(ref, text);
     return `typed ${text.length} characters into ${ref}`;
   },
-  key: ({ name, quiet }) => cdp.key(name, { quiet }),
-  upload: ({ path, match }) => cdp.upload(path, match),
-  select: ({ ref, value, quiet }) => cdp.select(ref, value, { quiet }),
-  scroll: ({ direction, ref, quiet }) => cdp.scroll(direction, ref, { quiet }),
-  hover: ({ ref, quiet }) => cdp.hover(ref, { quiet }),
-  back: () => cdp.go("back"),
-  forward: () => cdp.go("forward"),
+  key: ({ name, quiet }) => c.key(name, { quiet }),
+  upload: ({ path, match }) => c.upload(path, match),
+  select: ({ ref, value, quiet }) => c.select(ref, value, { quiet }),
+  scroll: ({ direction, ref, quiet }) => c.scroll(direction, ref, { quiet }),
+  hover: ({ ref, quiet }) => c.hover(ref, { quiet }),
+  back: () => c.go("back"),
+  forward: () => c.go("forward"),
   // The one tool here that returns no page: a tab list is orientation, and
   // paying for a snapshot of a tab the agent may not even switch to is the
   // opposite of what "actions return the page" is for.
-  tabs: () => cdp.tabs(),
+  tabs: () => c.tabs(),
   // The gate's own read, never offered to the model (mcp.ts registers no such
   // tool): what the element about to be clicked is, right now.
-  label: ({ ref }) => cdp.labelOf(ref),
+  label: ({ ref }) => c.labelOf(ref),
   // See's two internal calls, never offered to the model (mcp.ts registers no
   // such tool): the bridge's `find` asks for a screenshot, then for a point.
-  screenshot: () => cdp.screenshot().then(JSON.stringify),
-  point: ({ x, y, query }) => cdp.point(x, y, query),
-  use_tab: ({ id, url, full }) => cdp.useTab(id, url, { full }),
-};
+  screenshot: () => c.screenshot().then(JSON.stringify),
+  point: ({ x, y, query }) => c.point(x, y, query),
+  use_tab: ({ id, url, full }) => c.useTab(id, url, { full }),
+});
 
-export async function runTool(name, args) {
-  const tool = TOOLS[name];
-  if (!tool) throw new Error(`unknown tool ${name} — have ${Object.keys(TOOLS).join(", ")}`);
+/**
+ * `c` is the lane's cdp.js and `home` the tab that lane last drove, if any.
+ */
+export async function runTool(name, args, c = cdp, home = null) {
+  const tools = TOOLS(c);
+  const tool = tools[name];
+  if (!tool) throw new Error(`unknown tool ${name} — have ${Object.keys(tools).join(", ")}`);
   // The agent has no attach tool and should not need one: whichever tool runs
-  // first takes the active tab.
-  if (cdp.state().tabId === null) await cdp.attach();
+  // first takes the active tab. After a panel remount a lane goes back to the
+  // tab it was driving instead, or two lanes would both take the one in front.
+  if (c.state().tabId === null && (home == null || !(await c.attach(home).then(() => true, () => false)))) await c.attach();
   try {
     return String((await tool(args ?? {})) ?? "ok");
   } catch (err) {
@@ -69,7 +75,7 @@ export async function runTool(name, args) {
     if (name === "label" || !/stale ref|unknown ref/.test(err.message)) throw err;
     let page;
     try {
-      page = await cdp.snapshot();
+      page = await c.snapshot();
     } catch {
       throw err; // recovery itself failed — surface the real problem, not this one
     }

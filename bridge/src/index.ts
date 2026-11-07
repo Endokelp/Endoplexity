@@ -22,6 +22,7 @@ import {
   remove as removeSkill,
 } from "./skills.ts";
 import { setPanel, dropPanel, settle, settleGate, sendPanel } from "./relay.ts";
+import { cleanRun, dropRun, inRun, runId } from "./run.ts";
 import { writeMcpConfig, type Run } from "./claude.ts";
 import { writeCursorConfig } from "./cursor.ts";
 import { writeCodexConfig } from "./codex.ts";
@@ -113,7 +114,7 @@ const http = createServer(async (req, res) => {
   if (url.pathname === "/forget" && req.method === "POST") {
     if (!authorizeMcp(req.headers.origin, url.searchParams.get("token"), token)) return void res.writeHead(401).end();
     console.log("reader handoff: the next read is a whole page");
-    sendPanel({ type: "forget" });
+    sendPanel({ type: "forget", run: cleanRun(url.searchParams.get("run")) });
     return void res.writeHead(204).end();
   }
 
@@ -133,13 +134,13 @@ http.on("upgrade", (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws));
 });
 
-// One task at a time. Two agents driving one tab would fight over every ref.
-// A CLI, or a skill replaying with no CLI (whose Stop is mcp.ts's epoch).
-let running: (Pick<ChildProcess, "kill"> & Pick<Run, "steer">) | null = null;
-let runningModel = "";
-
 /**
- * Phase 18's state for the task under way, reset by a fresh one.
+ * Each run's state, by the run id the panel gave its lane (run.ts). One task at
+ * a time per run: two agents in one tab would fight over every ref. Runs in
+ * different lanes drive different tabs and share nothing but the panel.
+ *
+ *  - `running`: the CLI, or a skill replaying with no CLI (whose Stop is
+ *    mcp.ts's epoch).
  *  - `asked`: the task as sent, then each reply and mid-run message, in the
  *    user's words. An engine taking over after a limit is sent all of it.
  *  - `queued`: mid-run messages no CLI has read yet. cursor and codex take no
@@ -152,28 +153,39 @@ let runningModel = "";
  *    the panel puts in front of a task. The second key and the audit read
  *    this: a page title is page text, and the judge is told the task is the
  *    user's.
+ *  - `session`: the transcript the next task can pick up, or null. A finished
+ *    run is not a dead run: the CLI keeps its transcript on disk and `--resume`
+ *    continues it. This is the difference between an agent that can ask a
+ *    question and one that cannot: the first live Greenhouse run stopped to ask
+ *    for applicant data and died there, because a fresh spawn per task left the
+ *    answer nowhere to go. In memory on purpose, it dies with the bridge:
+ *    resuming across a restart would mean resuming into a Chrome that has since
+ *    moved on, and every ref in that transcript is already stale.
+ *  - `secondOn`: the Second key setting the task started with.
  */
-let asked: string[] = [];
-let ownWords: string[] = [];
-let queued: string[] = [];
-let order: string[] = [];
-let spent: string[] = [];
-let stopping = false;
-
-/**
- * The transcript the next task can pick up, or null if there is nothing to pick
- * up. A finished run is not a dead run — the CLI keeps its transcript on disk
- * and `--resume` continues it.
- *
- * This is the difference between an agent that can ask a question and one that
- * cannot: the first live Greenhouse run stopped to ask for applicant data and
- * died there, because a fresh spawn per task left the answer nowhere to go.
- *
- * In memory on purpose — it dies with the bridge. Resuming across a restart
- * would mean resuming into a Chrome that has since moved on, and every ref in
- * that transcript is already stale.
- */
-let session: { id: string; model: string } | null = null;
+type Lane = {
+  running: (Pick<ChildProcess, "kill"> & Pick<Run, "steer">) | null;
+  model: string;
+  asked: string[];
+  ownWords: string[];
+  queued: string[];
+  order: string[];
+  spent: string[];
+  stopping: boolean;
+  session: { id: string; model: string } | null;
+  secondOn: boolean;
+};
+const lanes = new Map<string, Lane>();
+/** The current run's state (run.ts), made on first use. */
+function L(): Lane {
+  const id = runId();
+  let lane = lanes.get(id);
+  if (!lane) {
+    lane = { running: null, model: "", asked: [], ownWords: [], queued: [], order: [], spent: [], stopping: false, session: null, secondOn: false };
+    lanes.set(id, lane);
+  }
+  return lane;
+}
 
 /**
  * claude spells it `session_id`; cursor's bundle carries that spelling, its
@@ -224,13 +236,15 @@ function startTask(
   // mid-run gets a different socket; a captured one would keep sending into
   // the dead original, so every tool call would still work (those go through
   // callPanel) while the panel showed nothing until the run ended.
-  const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", event });
+  const run = runId();
+  const lane = L();
+  const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", run, event });
   if (typeof prompt !== "string" || !prompt.trim()) return send({ type: "failed", error: "empty prompt" });
-  if (running) return send({ type: "failed", error: "a task is already running — stop it first" });
+  if (lane.running) return send({ type: "failed", error: "a task is already running in this lane — stop it first" });
 
   // Resuming pins the CLI as well as the transcript — a claude session cannot be
   // handed to cursor-agent — so the panel's dropdown gets no vote on a reply.
-  const resuming = resume ? session : null;
+  const resuming = resume ? lane.session : null;
   if (resume && !resuming) return send({ type: "failed", error: "no conversation to reply to" });
 
   // An unknown model used to fall back to sonnet. That silently ran Claude
@@ -243,7 +257,7 @@ function startTask(
   }
   // A fresh task abandons the old transcript before the new one reports its own
   // id, so a spawn that dies early cannot leave the previous session looking live.
-  if (!resuming) session = null;
+  if (!resuming) lane.session = null;
   // The trace a skill is saved from. A reply is the same piece of work, a retry
   // is a run that did nothing, and a hand-off finishes a replay (or another
   // engine's run) whose steps are already in it: only a fresh task starts one.
@@ -252,19 +266,19 @@ function startTask(
   // replay's steps; a delivered message is already in `asked`.
   const typed = typeof words === "string" && words.trim() ? words : prompt;
   if (!resuming && !isRetry && !takeover) {
-    asked = [asking ?? prompt];
-    queued = [];
-    spent = [];
+    lane.asked = [asking ?? prompt];
+    lane.queued = [];
+    lane.spent = [];
     // A skill's hand-off keeps the skill's task, set by startSkill.
-    if (!handoff) (resetSteps(), resetSeeSpent(), resetAudit(), (ownWords = [typed]));
+    if (!handoff) (resetSteps(), resetSeeSpent(), resetAudit(), (lane.ownWords = [typed]));
   } else if (resuming && !steered) {
-    asked.push(`Then the user replied:\n${prompt}`);
-    ownWords.push(`Then the user replied: ${typed}`);
+    lane.asked.push(`Then the user replied:\n${prompt}`);
+    lane.ownWords.push(`Then the user replied: ${typed}`);
   }
-  if (!isRetry && !takeover && !steered) stopping = false;
-  if (fallbacks !== undefined) order = cleanOrder(fallbacks);
+  if (!isRetry && !takeover && !steered) lane.stopping = false;
+  if (fallbacks !== undefined) lane.order = cleanOrder(fallbacks);
 
-  console.log(`${resuming ? "reply" : "task"} (${chosen}): ${prompt}`);
+  console.log(`${resuming ? "reply" : "task"} (${chosen}${run && `, run ${run}`}): ${prompt}`);
   let sawTool = false;
   let sawFake = false;
   let redo = false;
@@ -279,7 +293,7 @@ function startTask(
     const terminal = event.type === "done" || event.type === "failed";
     if (terminal) ended = true;
     const id = sessionOf(event);
-    if (id) session = { id, model: chosen };
+    if (id) lane.session = { id, model: chosen };
     if (usedTools(event)) sawTool = true;
     // Latched across the whole run, not read off the result event alone. That
     // was the bug: the fake XML is emitted in `assistant` events, and a run
@@ -291,13 +305,13 @@ function startTask(
     // Only worth retrying a run that did nothing: once a real tool call has
     // landed, the same text pattern is the agent quoting itself, not faking.
     if (event.type === "result" && !sawTool && !isRetry && sawFake) redo = true;
-    if (terminal) running = null;
+    if (terminal) lane.running = null;
     // Whether this end carries the task on, decided before anything treats it
     // as over: a usage limit goes to the next engine on another CLI, and a
     // message the CLI could not read mid-run goes in as a reply.
-    const limit = terminal && !redo && !stopping ? limitOf(event) : null;
-    const next = limit ? nextEngine(order, [...spent, chosen]) : null;
-    const deliver = terminal && !redo && !next && !stopping && !event.error && queued.length > 0 && session !== null;
+    const limit = terminal && !redo && !lane.stopping ? limitOf(event) : null;
+    const next = limit ? nextEngine(lane.order, [...lane.spent, chosen]) : null;
+    const deliver = terminal && !redo && !next && !lane.stopping && !event.error && lane.queued.length > 0 && lane.session !== null;
     // A clean end offers the run as a skill, or a healed replay's change to
     // one. Not for the void run a retry replaces, nor for a task carrying on.
     if (terminal && !redo && !next && !deliver) finish(event.type === "done" && !event.error);
@@ -328,28 +342,30 @@ function startTask(
     if (!terminal) return send(event);
     // The two ways on keep the panel busy too: no terminal event reaches it.
     if (next) {
-      spent.push(chosen);
+      lane.spent.push(chosen);
       return void takeOver(chosen, next, limit!);
     }
     if (deliver) {
-      const text = queued.join("\n\n");
-      queued = [];
+      const text = lane.queued.join("\n\n");
+      lane.queued = [];
       send({ type: "handoff", reason: `the run ended before ${chosen} could read your message, so it goes in as a reply` });
       return startTask(text, chosen, { resume: true, steered: true });
     }
-    if (queued.length) {
-      sendPanel({ type: "note", text: `your message reached no agent: the run ${stopping ? "was stopped" : "ended with an error"}. Reply to send it.` });
-      queued = [];
+    if (lane.queued.length) {
+      sendPanel({ type: "note", text: `your message reached no agent: the run ${lane.stopping ? "was stopped" : "ended with an error"}. Reply to send it.` });
+      lane.queued = [];
     }
     // The panel offers Reply off this flag, so it rides on the event that turns
     // the buttons back on rather than arriving as a message of its own. A run
     // killed by Stop is resumable too — that is the point, not an oversight.
     const end = limit ? { ...event, error: `${limit} (no engine on another CLI is set to take over: see Engines)` } : event;
-    return send({ ...end, resumable: session !== null });
+    return send({ ...end, resumable: lane.session !== null });
   };
 
-  runningModel = chosen;
-  running = MODELS[chosen](prompt, chosen, onEvent, resuming?.id);
+  lane.model = chosen;
+  // The CLI's events arrive on its stdout, outside the run that spawned it, so
+  // each is handled back inside it: everything onEvent calls reads this run's state.
+  lane.running = MODELS[chosen](prompt, chosen, (event) => inRun(run, () => onEvent(event)), resuming?.id, run);
 }
 
 /**
@@ -358,20 +374,22 @@ function startTask(
  * The panel stays busy throughout, as for a retry.
  */
 async function takeOver(from: string, to: string, why: string) {
-  const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", event });
+  const run = runId();
+  const lane = L();
+  const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", run, event });
   console.log(`usage limit on ${from} (${why}): ${to} takes over`);
   send({ type: "handoff", reason: `${from} hit its usage limit (${why}). ${to} carries on, on the same tab.` });
   // Held while the page is read, so a Stop has something to stop and no second
   // task can start in the gap.
   let dropped = false;
-  running = { kill: () => (dropped = true) };
+  lane.running = { kill: () => (dropped = true) };
   const at = await where();
   const page = await pageNow();
-  running = null;
-  if (dropped || stopping) return send({ type: "done", resumable: session !== null });
+  lane.running = null;
+  if (dropped || lane.stopping) return send({ type: "done", resumable: lane.session !== null });
   // Messages the old engine never read are in `asked` already.
-  queued = [];
-  startTask(handoffPrompt({ from, asked, steps: steps(), where: at.url ? at : null, page }), to, { takeover: true });
+  lane.queued = [];
+  startTask(handoffPrompt({ from, asked: lane.asked, steps: steps(), where: at.url ? at : null, page }), to, { takeover: true });
 }
 
 /**
@@ -381,12 +399,13 @@ async function takeOver(from: string, to: string, why: string) {
  */
 function steer(text: unknown) {
   if (typeof text !== "string" || !text.trim()) return;
-  if (!running) return void sendPanel({ type: "note", text: "nothing is running: Run or Reply to send it" });
-  asked.push(`While it ran, the user said: ${text}`);
-  ownWords.push(`While it ran, the user said: ${text}`);
-  if (running.steer?.(text)) return void sendPanel({ type: "note", text: `sent to the running agent (${runningModel})` });
-  queued.push(text);
-  sendPanel({ type: "note", text: `queued: ${runningModel || "the agent"} reads it when this run ends` });
+  const lane = L();
+  if (!lane.running) return void sendPanel({ type: "note", text: "nothing is running: Run or Reply to send it" });
+  lane.asked.push(`While it ran, the user said: ${text}`);
+  lane.ownWords.push(`While it ran, the user said: ${text}`);
+  if (lane.running.steer?.(text)) return void sendPanel({ type: "note", text: `sent to the running agent (${lane.model})` });
+  lane.queued.push(text);
+  sendPanel({ type: "note", text: `queued: ${lane.model || "the agent"} reads it when this run ends` });
 }
 
 /**
@@ -396,8 +415,10 @@ function steer(text: unknown) {
  * user the change to the skill.
  */
 async function startSkill(id: unknown, vars: unknown, model: unknown, fallbacks: unknown) {
-  const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", event });
-  if (running) return send({ type: "failed", error: "a task is already running — stop it first" });
+  const run = runId();
+  const lane = L();
+  const send = (event: Record<string, unknown>) => void sendPanel({ type: "task-event", run, event });
+  if (lane.running) return send({ type: "failed", error: "a task is already running in this lane — stop it first" });
   // Checked before anything runs: the hand-off needs a model to go to.
   if (typeof model !== "string" || !Object.hasOwn(MODELS, model)) {
     return send({ type: "failed", error: `unknown model ${JSON.stringify(model)}` });
@@ -410,27 +431,27 @@ async function startSkill(id: unknown, vars: unknown, model: unknown, fallbacks:
   }
   // A replay is a fresh piece of work: a Reply after it must not resume the
   // conversation before it, which knows nothing of these steps.
-  session = null;
+  lane.session = null;
   begin(task);
   resetSteps();
   resetAudit();
-  ownWords = [task];
-  queued = [];
-  spent = [];
-  stopping = false;
-  order = cleanOrder(fallbacks);
+  lane.ownWords = [task];
+  lane.queued = [];
+  lane.spent = [];
+  lane.stopping = false;
+  lane.order = cleanOrder(fallbacks);
   console.log(`skill: ${id}`);
   const t0 = Date.now();
   // Stop reaches a replay through mcp.ts's epoch, which index.ts's stop
   // handler bumps before it calls this.
-  running = { kill: () => true };
-  runningModel = "";
+  lane.running = { kill: () => true };
+  lane.model = "";
   const r = await runSkill(String(id), vars);
-  running = null;
+  lane.running = null;
   console.log(`  ${report({ ...r, page: undefined })}`);
   // Typed while the replay ran, which reads nothing: the model taking over
   // reads it, and with no model it reaches nobody.
-  const said = queued.splice(0);
+  const said = lane.queued.splice(0);
   if (!r.stop || r.stop.final) {
     if (!r.stop) send({ type: "result", result: `Replayed all ${r.of} steps of "${r.skill?.name}", with no model.`, num_turns: 0, duration_ms: Date.now() - t0 });
     if (said.length) sendPanel({ type: "note", text: "your message reached no agent: a replay reads nothing. Run it as a task to send it." });
@@ -460,10 +481,10 @@ async function startSkill(id: unknown, vars: unknown, model: unknown, fallbacks:
  * The engine is read when the gate asks, since a failover changes it; a replay
  * runs none, so it judges as for the model it would hand over to.
  */
-let secondOn = false;
 function guardRun(setting: unknown, model: unknown) {
-  secondOn = setting !== false;
-  guard(secondOn ? () => ({ engine: runningModel || String(model ?? ""), task: ownWords }) : null);
+  const lane = L();
+  lane.secondOn = setting !== false;
+  guard(lane.secondOn ? () => ({ engine: lane.model || String(model ?? ""), task: lane.ownWords }) : null);
 }
 
 /**
@@ -497,8 +518,13 @@ wss.on("connection", (ws) => {
   // the panel — Chrome tears the side panel document down on every window
   // switch, so a list held there would take the chips with it and the user
   // would be re-attaching a resume several times an hour.
+  //
+  // Per run since Phase 21, as `runs`. `running` and `resumable` still describe
+  // the run "", which is what a panel from before lanes drives.
+  const runs = [...lanes].map(([run, lane]) => ({ run, running: lane.running !== null, resumable: lane.session !== null }));
+  const plain = lanes.get("");
   ws.send(
-    JSON.stringify({ type: "hello", running: running !== null, resumable: session !== null, files: listFiles() }),
+    JSON.stringify({ type: "hello", runs, running: Boolean(plain?.running), resumable: Boolean(plain?.session), files: listFiles() }),
   );
   // The panel's Reflexes section and cdp.js's Settle state both come from here:
   // the panel holds no settings of its own across a remount.
@@ -516,116 +542,132 @@ wss.on("connection", (ws) => {
     // `"null"` and `"7"` parse cleanly and are not frames — reading .type off
     // either throws inside a ws handler, which takes the process with it.
     if (!msg || typeof msg !== "object") return;
-    if (msg.type === "ping") ws.send(JSON.stringify({ type: "pong", at: Date.now() }));
-    else if (msg.type === "tool-result") settle(msg);
-    else if (msg.type === "gate-reply") settleGate(msg);
-    else if (msg.type === "task") {
-      // The mode is the human's, so it arrives with the task and is enforced in
-      // the bridge. It is never in a prompt and the model never sees it, so
-      // nothing the agent says can widen its own permissions. The plan lock and
-      // the second key ride with it, for the same reason.
-      setMode(msg.mode, msg.plan);
-      guardRun(msg.secondKey, msg.model);
-      // The failover order is the human's too, and failover.ts admits only
-      // models MODELS knows, so it can name no binary the dropdown cannot.
-      startTask(msg.prompt, msg.model, { resume: msg.resume === true, words: msg.task, fallbacks: msg.fallbacks ?? [] });
-    } else if (msg.type === "run-skill") {
-      // Same rule as a task: the mode is the human's and arrives with the run.
-      if (!running) (setMode(msg.mode, msg.plan), guardRun(msg.secondKey, msg.model));
-      void startSkill(msg.id, msg.vars, msg.model, msg.fallbacks);
-    } else if (msg.type === "steer") steer(msg.text);
-    else if (msg.type === "audit") {
-      // What this task did, as a file the panel saves. The engines are the ones
-      // that ran out, then the one that ran last.
-      const engines = [...new Set([...spent, runningModel].filter(Boolean))];
-      ws.send(JSON.stringify({ type: "audit", ...auditMarkdown({ task: ownWords, engines, mode: modeNow(), ...planOf(), second: secondOn }) }));
-    }
-    else if (msg.type === "proposal-reply") {
-      // Writes only what the bridge holds for that id; `name` is a skill's
-      // file name, which skills.ts reduces to [a-z0-9-].
-      try {
-        const saved = answer(msg.id, msg.approved, msg.name);
-        if (saved) ws.send(JSON.stringify({ type: "note", text: saved }));
-      } catch (err) {
-        ws.send(JSON.stringify({ type: "reflex-failed", error: `not saved: ${(err as Error).message}` }));
-      }
-    } else if (msg.type === "delete-skill") {
-      try {
-        removeSkill(msg.id);
-      } catch (err) {
-        ws.send(JSON.stringify({ type: "reflex-failed", error: (err as Error).message }));
-      }
-    } else if (msg.type === "attach-file" || msg.type === "detach-file") {
-      // The panel cannot hand over a path — an <input type="file"> gives a name
-      // and bytes and nothing else — so the bytes come over this socket and the
-      // copy on disk is what `upload` and `read_file` then resolve a key to.
-      try {
-        if (msg.type === "attach-file") {
-          // base64 rather than a binary frame: the panel's protocol is one JSON
-          // shape per message and a second one buys nothing here. A ~33% size
-          // tax on a file that is sent once is not worth a framing branch.
-          //
-          // typeof, not String(): coercing an object gives "[object Object]",
-          // and Buffer.from drops the characters outside the base64 alphabet
-          // rather than throwing — so that decodes to nine real bytes and a
-          // garbled message would WRITE A FILE instead of being refused. Same
-          // family as the three P12a crashes: valid JSON that is not the shape
-          // the reader assumed.
-          if (typeof msg.data !== "string") throw new Error("attach-file carried no data");
-          const added = attach(msg.name, Buffer.from(msg.data, "base64"));
-          console.log(`attached "${added.key}" — ${added.name}, ${added.size} bytes`);
-        } else {
-          detach(msg.key);
-          console.log(`detached "${msg.key}"`);
-        }
-        ws.send(JSON.stringify({ type: "files", files: listFiles() }));
-      } catch (err) {
-        // Named, and sent back rather than logged: the bridge runs windowless,
-        // so a refusal nobody sees is a paperclip that silently does nothing.
-        ws.send(JSON.stringify({ type: "file-failed", error: (err as Error).message }));
-      }
-    } else if (msg.type === "reflex-log") settled(msg.row);
-    else if (msg.type === "reflex-settings" || msg.type === "reflex-mark" || msg.type === "reflex-clear" || msg.type === "reflex-status") {
-      // Settings are sanitized in reflex.ts: an unknown value is the default,
-      // and Act that a backend has not earned arrives as Shadow.
-      if (msg.type === "reflex-settings") {
-        saveSettings(msg.settings);
-        syncLaya();
-      } else if (msg.type === "reflex-mark") mark(msg.id, msg.truth);
-      else if (msg.type === "reflex-clear") clearLog();
-      pushReflexes();
-    } else if (msg.type === "jev-key") {
-      try {
-        writeJevKey(msg.key);
-      } catch (err) {
-        ws.send(JSON.stringify({ type: "reflex-failed", error: `Jev key not saved: ${(err as Error).message}` }));
-      }
-      pushReflexes();
-    } else if (msg.type === "stop") {
-      // Killing the CLI stops its next call, not a batch already in the bridge.
-      stopping = true;
-      stop();
-      running?.kill();
-    }
-    // The panel archived its transcript and started clean, so the CLI session
-    // must go too — otherwise a Reply after the next remount would resume the
-    // conversation the user just put away. Only the id is dropped; a task still
-    // running is left alone, and the panel disables New while one is.
-    else if (msg.type === "new-session") session = null;
+    // Everything a message starts happens in the run of the lane that sent it
+    // (run.ts), so a Stop or a task in one lane never reads another's state.
+    inRun(cleanRun(msg.run), () => onMessage(ws, msg));
   });
 
   ws.on("close", () => {
     dropPanel(ws);
     console.log("panel disconnected");
-    if (!running || orphanTimer) return;
+    if (![...lanes.values()].some((lane) => lane.running) || orphanTimer) return;
     orphanTimer = setTimeout(() => {
       orphanTimer = null;
-      if (!running) return;
-      console.warn(`no panel for ${ORPHAN_GRACE_MS / 1000}s — killing the task it was driving`);
-      running.kill();
+      const orphans = [...lanes.values()].filter((lane) => lane.running);
+      if (!orphans.length) return;
+      console.warn(`no panel for ${ORPHAN_GRACE_MS / 1000}s — killing the ${orphans.length === 1 ? "task" : "tasks"} it was driving`);
+      for (const lane of orphans) lane.running?.kill();
     }, ORPHAN_GRACE_MS);
   });
 });
+
+/** One message from the panel, already inside the run of the lane that sent it. */
+function onMessage(ws: WebSocket, msg: Record<string, any>) {
+  if (msg.type === "ping") ws.send(JSON.stringify({ type: "pong", at: Date.now() }));
+  else if (msg.type === "tool-result") settle(msg);
+  else if (msg.type === "gate-reply") settleGate(msg);
+  else if (msg.type === "task") {
+    // The mode is the human's, so it arrives with the task and is enforced in
+    // the bridge. It is never in a prompt and the model never sees it, so
+    // nothing the agent says can widen its own permissions. The plan lock and
+    // the second key ride with it, for the same reason.
+    setMode(msg.mode, msg.plan);
+    guardRun(msg.secondKey, msg.model);
+    // The failover order is the human's too, and failover.ts admits only
+    // models MODELS knows, so it can name no binary the dropdown cannot.
+    startTask(msg.prompt, msg.model, { resume: msg.resume === true, words: msg.task, fallbacks: msg.fallbacks ?? [] });
+  } else if (msg.type === "run-skill") {
+    // Same rule as a task: the mode is the human's and arrives with the run.
+    if (!L().running) (setMode(msg.mode, msg.plan), guardRun(msg.secondKey, msg.model));
+    void startSkill(msg.id, msg.vars, msg.model, msg.fallbacks);
+  } else if (msg.type === "steer") steer(msg.text);
+  else if (msg.type === "audit") {
+    // What this task did, as a file the panel saves. The engines are the ones
+    // that ran out, then the one that ran last.
+    const lane = L();
+    const engines = [...new Set([...lane.spent, lane.model].filter(Boolean))];
+    ws.send(JSON.stringify({ type: "audit", run: runId(), ...auditMarkdown({ task: lane.ownWords, engines, mode: modeNow(), ...planOf(), second: lane.secondOn }) }));
+  }
+  else if (msg.type === "proposal-reply") {
+    // Writes only what the bridge holds for that id; `name` is a skill's
+    // file name, which skills.ts reduces to [a-z0-9-].
+    try {
+      const saved = answer(msg.id, msg.approved, msg.name);
+      if (saved) ws.send(JSON.stringify({ type: "note", text: saved }));
+    } catch (err) {
+      ws.send(JSON.stringify({ type: "reflex-failed", error: `not saved: ${(err as Error).message}` }));
+    }
+  } else if (msg.type === "delete-skill") {
+    try {
+      removeSkill(msg.id);
+    } catch (err) {
+      ws.send(JSON.stringify({ type: "reflex-failed", error: (err as Error).message }));
+    }
+  } else if (msg.type === "attach-file" || msg.type === "detach-file") {
+    // The panel cannot hand over a path — an <input type="file"> gives a name
+    // and bytes and nothing else — so the bytes come over this socket and the
+    // copy on disk is what `upload` and `read_file` then resolve a key to.
+    try {
+      if (msg.type === "attach-file") {
+        // base64 rather than a binary frame: the panel's protocol is one JSON
+        // shape per message and a second one buys nothing here. A ~33% size
+        // tax on a file that is sent once is not worth a framing branch.
+        //
+        // typeof, not String(): coercing an object gives "[object Object]",
+        // and Buffer.from drops the characters outside the base64 alphabet
+        // rather than throwing — so that decodes to nine real bytes and a
+        // garbled message would WRITE A FILE instead of being refused. Same
+        // family as the three P12a crashes: valid JSON that is not the shape
+        // the reader assumed.
+        if (typeof msg.data !== "string") throw new Error("attach-file carried no data");
+        const added = attach(msg.name, Buffer.from(msg.data, "base64"));
+        console.log(`attached "${added.key}" — ${added.name}, ${added.size} bytes`);
+      } else {
+        detach(msg.key);
+        console.log(`detached "${msg.key}"`);
+      }
+      ws.send(JSON.stringify({ type: "files", files: listFiles() }));
+    } catch (err) {
+      // Named, and sent back rather than logged: the bridge runs windowless,
+      // so a refusal nobody sees is a paperclip that silently does nothing.
+      ws.send(JSON.stringify({ type: "file-failed", error: (err as Error).message }));
+    }
+  } else if (msg.type === "reflex-log") settled(msg.row);
+  else if (msg.type === "reflex-settings" || msg.type === "reflex-mark" || msg.type === "reflex-clear" || msg.type === "reflex-status") {
+    // Settings are sanitized in reflex.ts: an unknown value is the default,
+    // and Act that a backend has not earned arrives as Shadow.
+    if (msg.type === "reflex-settings") {
+      saveSettings(msg.settings);
+      syncLaya();
+    } else if (msg.type === "reflex-mark") mark(msg.id, msg.truth);
+    else if (msg.type === "reflex-clear") clearLog();
+    pushReflexes();
+  } else if (msg.type === "jev-key") {
+    try {
+      writeJevKey(msg.key);
+    } catch (err) {
+      ws.send(JSON.stringify({ type: "reflex-failed", error: `Jev key not saved: ${(err as Error).message}` }));
+    }
+    pushReflexes();
+  } else if (msg.type === "stop") {
+    // Killing the CLI stops its next call, not a batch already in the bridge.
+    const lane = L();
+    lane.stopping = true;
+    stop();
+    lane.running?.kill();
+  }
+  // The panel closed a lane (or, before lanes, archived its one transcript),
+  // so its CLI session must go too: otherwise a Reply after the next remount
+  // would resume the conversation the user just put away. The lane's state
+  // goes with it in every module (run.ts). A task still running is left
+  // alone; the panel closes only idle lanes.
+  else if (msg.type === "close-run" || msg.type === "new-session") {
+    const run = runId();
+    if (lanes.get(run)?.running) return;
+    lanes.delete(run);
+    dropRun(run);
+  }
+}
 
 // The bridge is started by a Startup .vbs with no window, so dying is silent:
 // the panel just says "not connected" forever and the reason is in a log nobody

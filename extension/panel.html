@@ -113,7 +113,7 @@
       }
       /* Standard properties, not a re-skinned scrollbar: the panel is narrow
          enough that a 15px default eats 4% of the reading width. */
-      #chat, #log, .table-scroll, pre { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+      .chat, #log, .table-scroll, pre { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 
       .icon { width: 16px; height: 16px; flex: none; display: block; }
 
@@ -202,8 +202,49 @@
       #where-mode.trust { color: var(--danger); border-color: var(--danger); }
       #where-mode.watch { color: var(--gate); border-color: var(--gate); }
 
+      /* ---- lanes ---------------------------------------------------------- */
+      /*
+        Parallel runs (Phase 21). Hidden with one lane, so a single task looks
+        as it always did. Pills wrap rather than scroll: nothing scrolls
+        sideways at 360px. Each pill carries the same state glyph as the
+        provenance row, so a lane that needs you reads by form, not hue alone.
+      */
+      #lanes { display: none; flex: none; flex-wrap: wrap; gap: 5px; margin: 0 12px 6px; }
+      #lanes.show { display: flex; }
+      .lane-pill {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        max-width: 100%;
+        height: 25px;
+        padding: 0 4px 0 9px;
+        font-size: var(--t-meta);
+        color: var(--text-soft);
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+      }
+      .lane-pill.on { color: var(--text); background: var(--sink); border-color: var(--line); }
+      .lane-pill .icon { width: 12px; height: 12px; flex: none; color: var(--text-faint); }
+      .lane-pill .icon.run { color: var(--accent); animation: pulse 1.6s var(--ease) infinite; }
+      .lane-pill .icon.done { color: var(--accent); }
+      .lane-pill .icon.fail { color: var(--danger); }
+      .lane-pill .icon.gate { color: var(--gate); }
+      .lane-pill .name { min-width: 0; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .lane-pill:hover:not(.on) { background: var(--sink); }
+      .lane-pill .pick { height: 23px; min-width: 0; padding: 0; gap: 5px; font-size: var(--t-meta); color: inherit; }
+      .lane-pill .pick:hover:not(:disabled) { background: none; color: var(--text); }
+      .lane-pill .close { width: 19px; height: 19px; padding: 0; border-radius: 50%; flex: none; }
+      .lane-pill .close .icon { width: 10px; height: 10px; }
+      .lane-pill:not(.closable) { padding-right: 9px; }
+      #gate-run { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text-soft); }
+      #gate-run:not(:empty)::before { content: "· "; }
+
       /* ---- transcript --------------------------------------------------- */
-      #chat {
+      #views { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      .lane { flex: 1; min-height: 0; display: none; flex-direction: column; }
+      .lane.shown { display: flex; }
+      .chat {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
@@ -214,7 +255,7 @@
         flex-direction: column;
         align-items: stretch;
       }
-      #chat > * { animation: rise var(--slow) var(--ease) both; }
+      .chat > * { animation: rise var(--slow) var(--ease) both; }
       @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
       @keyframes pulse { 50% { opacity: 0.35; } }
 
@@ -460,7 +501,7 @@
         pushed toward the middle of the column rather than parked above the
         composer, so the first screen is an invitation instead of a form.
       */
-      #empty {
+      .empty {
         margin: auto 0;
         animation: none;
         display: flex;
@@ -470,9 +511,9 @@
       }
       /* Hidden, not removed — New Session brings it back, and its seed buttons
          are wired once at load. */
-      #empty.gone { display: none; }
-      #empty .mark { width: 30px; height: 30px; margin-bottom: 12px; }
-      #empty p {
+      .empty.gone { display: none; }
+      .empty .mark { width: 30px; height: 30px; margin-bottom: 12px; }
+      .empty p {
         margin: 0 0 20px;
         font-size: 13.5px;
         line-height: 1.55;
@@ -510,7 +551,7 @@
       .seed:hover { color: var(--text); border-color: var(--line); background: var(--sink); }
 
       /* ---- live step ------------------------------------------------------ */
-      #step {
+      .step {
         flex: none;
         display: none;
         align-items: center;
@@ -519,8 +560,8 @@
         font-size: var(--t-meta);
         color: var(--text-soft);
       }
-      #step.on { display: flex; }
-      #step::before {
+      .step.on { display: flex; }
+      .step::before {
         content: "";
         width: 5px;
         height: 5px;
@@ -1178,14 +1219,23 @@
       </button>
     </header>
 
+    <!-- One pill per lane while two or more are open: which runs exist, which
+         one is on screen, and which needs you. Filled by panel.js. -->
+    <div id="lanes" role="tablist" aria-label="Runs"></div>
+
     <div id="where">
       <svg id="where-state" class="icon" aria-hidden="true"><use href="#i-dot" /></svg>
       <span id="where-title" class="idle">no tab attached yet</span>
       <span id="where-mode">Normal</span>
     </div>
 
-    <div id="chat" role="log" aria-live="polite">
-      <div id="empty">
+    <!-- Each lane is a copy of the template below (panel.js), with its own
+         transcript and its own live step line; one is shown at a time. -->
+    <div id="views"></div>
+    <template id="lane-view">
+      <div class="lane">
+      <div class="chat" role="log" aria-live="polite">
+      <div class="empty">
         <svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg>
         <p>I can read and act on the page you are looking at: click, type, fill forms, move between tabs. Type <b>@</b> to point me at another open tab. Drop a file anywhere here — or use the paperclip — and I can read it, or put it into a form.</p>
         <div class="label">Try</div>
@@ -1193,9 +1243,10 @@
         <button class="seed">Find the pricing page and compare the tiers in a table</button>
         <button class="seed">Fill this form from my resume, but stop before submitting</button>
       </div>
-    </div>
-
-    <div id="step" aria-live="polite"></div>
+      </div>
+      <div class="step" aria-live="polite"></div>
+      </div>
+    </template>
 
     <div id="viewing">
       <span>Viewing an earlier session</span>
@@ -1208,6 +1259,7 @@
       <div class="head">
         <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
         Approval needed
+        <span id="gate-run"></span>
       </div>
       <div id="gate-action"></div>
       <div id="gate-second" role="status"></div>

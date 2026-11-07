@@ -70,7 +70,7 @@ function add(node) {
   // one — which hid the empty state before anybody could read it. Measured in
   // headless: on a first run the invitation and its three example tasks
   // rendered and vanished in the same frame.
-  if (!node.classList?.contains("note")) chatEl.querySelector("#empty")?.classList.add("gone");
+  if (!node.classList?.contains("note")) chatEl.querySelector(".empty")?.classList.add("gone");
   const atBottom = chatEl.scrollHeight - chatEl.scrollTop - chatEl.clientHeight < 60;
   chatEl.appendChild(node);
   if (atBottom) chatEl.scrollTop = chatEl.scrollHeight;
@@ -266,8 +266,8 @@ export function clear() {
   if (chatEl) {
     // Everything except the empty state, which is markup from panel.html with
     // listeners already bound to it — replaceChildren() would take it too.
-    for (const node of [...chatEl.children]) if (node.id !== "empty") node.remove();
-    chatEl.querySelector("#empty")?.classList.remove("gone");
+    for (const node of [...chatEl.children]) if (!node.classList.contains("empty")) node.remove();
+    chatEl.querySelector(".empty")?.classList.remove("gone");
   }
   gateEl = null;
   gateEntry = null;

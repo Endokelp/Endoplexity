@@ -126,6 +126,18 @@ function onEvent(source, method, params) {
 // to tabs.update, so a tab showing one is a dead end, not a starting point.
 const DRIVABLE = /^(https?|file):/;
 
+/*
+ * Parallel runs (Phase 21). The panel loads one copy of this module per lane
+ * (`cdp.js?lane=<id>`), so each lane has its own tab, refs and frames, and
+ * tells each copy which tabs the other lanes hold. A second attach to a held
+ * tab would take it from the lane driving it: attach() releases an attachment
+ * of ours it finds there, by design, for the panel's own remounts.
+ */
+let taken = () => false;
+/** The panel's answer to "is this tab another lane's?". */
+export const setTaken = (fn) => void (taken = fn);
+const busyTab = (id) => new Error(`tab ${id} is being driven by another run in this panel`);
+
 /**
  * The tab to drive when nobody named one.
  *
@@ -134,8 +146,15 @@ const DRIVABLE = /^(https?|file):/;
  * with "Cannot access a chrome:// URL" and cannot even be navigated away from.
  * Fall back to another drivable tab in the window, and open one if there is none.
  */
-const findDrivable = (tabs) =>
-  tabs.find((t) => t.active && DRIVABLE.test(t.url ?? "")) ?? tabs.find((t) => DRIVABLE.test(t.url ?? ""));
+//
+// When another lane is driving the tab in front, nothing here is this lane's
+// to take: not that tab, and not some other tab of yours it was never pointed
+// at. The caller opens a tab of its own instead.
+const findDrivable = (tabs) => {
+  if (tabs.some((t) => t.active && taken(t.id))) return undefined;
+  const free = tabs.filter((t) => !taken(t.id));
+  return free.find((t) => t.active && DRIVABLE.test(t.url ?? "")) ?? free.find((t) => DRIVABLE.test(t.url ?? ""));
+};
 
 async function pickTab(open) {
   const usable = findDrivable(await chrome.tabs.query({ currentWindow: true }));
@@ -149,6 +168,8 @@ async function pickTab(open) {
   if (!open) return null;
   // No wait: about:blank is already loaded, and navigate() waits for its own.
   const opened = await chrome.tabs.create({ url: "about:blank", active: true });
+  // Opened by the run, so it is the run's: rule 3 on joinGroup().
+  await joinGroup(opened.id);
   return opened.id;
 }
 
@@ -182,6 +203,7 @@ export async function attach(target, { open = true } = {}) {
     if (!open) return null;
     throw new Error("no tab to drive");
   }
+  if (taken(id)) throw busyTab(id);
 
   try {
     await chrome.debugger.attach({ tabId: id }, "1.3");
@@ -373,7 +395,9 @@ export async function drivable() {
 export async function tabs() {
   const open = await drivable();
   if (!open.length) return "no drivable tabs open";
-  return open.map((t) => `${t.id === tabId ? "*" : " "} id ${t.id} — "${t.title ?? ""}" ${t.url}`).join("\n");
+  return open
+    .map((t) => `${t.id === tabId ? "*" : " "} id ${t.id} — "${t.title ?? ""}" ${t.url}${t.id !== tabId && taken(t.id) ? " (another run is driving this tab)" : ""}`)
+    .join("\n");
 }
 
 /**
@@ -399,6 +423,7 @@ export async function useTab(id, url, options) {
   // the real one in pendingUrl until the navigation commits, so reading .url
   // there rejects every new tab as undrivable.
   if (url && !DRIVABLE.test(url)) throw undrivable(url);
+  if (!url && taken(id)) throw busyTab(id);
   const target = url ? (await chrome.tabs.create({ url, active: true })).id : id;
   if (target == null) throw new Error("use_tab needs an id from tabs(), or a url to open");
   // Only a tab we just opened — see the rules on joinGroup().

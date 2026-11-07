@@ -466,3 +466,37 @@ test("point() refuses a position outside the viewport, and a non-number", async 
   await cdp.detach();
   reply = () => undefined;
 });
+
+test("a lane never takes a tab another lane is running on, nor any other tab of yours in its place", async () => {
+  fail = () => null;
+  // Lane B is driving tab 1, which is in front; tab 3 is some other page of yours.
+  openTabs = [
+    { id: 1, url: "https://busy.test/", active: true },
+    { id: 3, url: "https://yours.test/", active: false },
+  ];
+  cdp.setTaken((id: number) => id === 1);
+  created = 0;
+  grouped.length = 0;
+  cdp.nameRun("second task");
+
+  assert.equal(await cdp.currentPage(), null, "the prompt names no page: the one in front is not this lane's");
+  assert.equal(await cdp.attach(undefined, { open: false }), null, "the pre-Run re-attach takes nothing");
+  await assert.rejects(cdp.attach(1), /another run/, "nor by id");
+
+  // The first tool call opens a tab of its own, and it goes in the run's group.
+  newTabId = 4;
+  assert.equal(await cdp.attach(), 4);
+  assert.equal(created, 1);
+  assert.deepEqual(grouped.at(-1)?.tabIds, [4]);
+  await assert.rejects(cdp.useTab(1), /another run/, "use_tab cannot reach it either");
+  // Even a stale claim on its own tab leaves its own line as where() parses it.
+  openTabs = [...openTabs, { id: 4, url: "https://own.test/", active: false }];
+  cdp.setTaken((id: number) => id === 1 || id === 4);
+  const list = await cdp.tabs();
+  assert.match(list, /id 1 .*\(another run is driving this tab\)/);
+  assert.match(list, /^\* id 4 — "" https:\/\/own\.test\/$/m);
+
+  await cdp.detach();
+  cdp.setTaken(() => false);
+  newTabId = 2;
+});
