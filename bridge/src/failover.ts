@@ -34,6 +34,20 @@ export function limitOf(event: Record<string, unknown>): string | null {
   return (hit ?? lines[0] ?? "a usage limit").slice(0, 300);
 }
 
+/**
+ * The run's last event as the panel gets it. Stop kills the CLI, and every
+ * adapter reads a killed child (code null) as a failure carrying its stderr:
+ * claude's was `[claude-code:unrecognized_model] {...}`, shown red as "failed".
+ * The user stopped it, so the end says that instead.
+ */
+export function endOf(event: Record<string, unknown>, limit: string | null, stopping: boolean): Record<string, unknown> {
+  if (stopping && event.type === "done") {
+    const { error: _, ...rest } = event;
+    return { ...rest, stopped: true };
+  }
+  return limit ? { ...event, error: `${limit} (no engine on another CLI is set to take over: see Engines)` } : event;
+}
+
 /** The order as the panel sent it: models the bridge knows, no repeats, three at most. */
 export function cleanOrder(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];

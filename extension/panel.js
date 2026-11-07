@@ -613,6 +613,7 @@ function show(lane, event) {
   }
   // Red, not the housekeeping grey every other note uses: a run that ended in
   // failure is the one note that must not read like "reconnected".
+  if (event.type === "done" && event.stopped) return ui.note("stopped");
   if (event.type === "done" && event.error) return ui.note(`failed — ${event.error}`, true);
   if (event.type === "failed") return ui.note(`failed — ${event.error}`, true);
 }

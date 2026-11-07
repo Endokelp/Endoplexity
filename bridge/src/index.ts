@@ -9,7 +9,7 @@ import { handleMcp, modeNow, pageNow, report, resetSteps, runSkill, setMode, ste
 import { planOf } from "./gate.ts";
 import { guard } from "./second.ts";
 import { auditMarkdown, initAudit, resetAudit } from "./audit.ts";
-import { cleanOrder, handoffPrompt, limitOf, nextEngine } from "./failover.ts";
+import { cleanOrder, endOf, handoffPrompt, limitOf, nextEngine } from "./failover.ts";
 import {
   answer,
   begin,
@@ -383,8 +383,7 @@ function startTask(
     // The panel offers Reply off this flag, so it rides on the event that turns
     // the buttons back on rather than arriving as a message of its own. A run
     // killed by Stop is resumable too — that is the point, not an oversight.
-    const end = limit ? { ...event, error: `${limit} (no engine on another CLI is set to take over: see Engines)` } : event;
-    return send({ ...end, resumable: lane.session !== null });
+    return send({ ...endOf(event, limit, lane.stopping), resumable: lane.session !== null });
   };
 
   lane.model = chosen;

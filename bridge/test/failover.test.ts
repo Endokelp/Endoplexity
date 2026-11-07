@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { serialize } from "../../extension/ax.js";
 import { errorIn } from "../src/claude.ts";
-import { cleanOrder, handoffPrompt, LIMIT, limitOf, nextEngine } from "../src/failover.ts";
+import { cleanOrder, endOf, handoffPrompt, LIMIT, limitOf, nextEngine } from "../src/failover.ts";
 import { pageNow, relay, resetSteps, setMode, steps } from "../src/mcp.ts";
 import { remember } from "../src/page.ts";
 import { dropPanel, setPanel, settle } from "../src/relay.ts";
@@ -55,6 +55,14 @@ test("an ordinary failure is not a limit, so it never changes engines", () => {
   // Only a run's end: an assistant message quoting the words is a model talking.
   assert.equal(limitOf({ type: "result", error: "You've hit your usage limit" }), null);
   assert.ok(!LIMIT.test("rate limit"));
+});
+
+test("a Stop ends the run as stopped, not as the killed CLI's stderr", () => {
+  const killed = { type: "done", code: null, error: '[claude-code:unrecognized_model] {"model":"claude-haiku-5-5"}' };
+  assert.deepEqual(endOf(killed, null, true), { type: "done", code: null, stopped: true });
+  assert.deepEqual(endOf(killed, null, false), killed, "a crash nobody asked for is still a failure");
+  assert.equal(endOf({ type: "failed", error: "could not start claude: spawn ENOENT" }, null, true).error, "could not start claude: spawn ENOENT");
+  assert.match(String(endOf({ type: "done", code: 1, error: "x" }, "You've hit your usage limit", false).error), /^You've hit your usage limit \(no engine/);
 });
 
 test("the order admits known models only, once each, three at most", () => {
