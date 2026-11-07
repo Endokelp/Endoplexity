@@ -13,6 +13,7 @@
 import { askPanel, callPanel } from "./relay.ts";
 import { IRREVERSIBLE } from "./gate.ts";
 import { labelFor, labelsOf, near, remember } from "./page.ts";
+import { perRun } from "./run.ts";
 import {
   argmax,
   ask,
@@ -96,7 +97,8 @@ const normalized = (p: Probs): Probs => {
 // ------------------------------------------------------------------- Pick
 
 // Pick rows waiting for the model's next action, which is their truth.
-let open: Row[] = [];
+// Per run (run.ts): each run has its own tab, so its own rows and arrival.
+const R = perRun(() => ({ open: [] as Row[], arrival: null as Row | null, seeUsd: 0 }));
 const OPEN_CAP = 20;
 
 type Hit = { ref: string; line: string; p: number };
@@ -128,7 +130,7 @@ export function pick(query: string, hits: Hit[]): Promise<Hit | null> | undefine
   });
   // Open before anything is awaited: the model's next action is the truth, and
   // it must find this row even if it lands before the tab list does.
-  open = [...open.slice(-(OPEN_CAP - 1)), row];
+  R().open = [...R().open.slice(-(OPEN_CAP - 1)), row];
   const run = where().then((w) => {
     row.state = [`Find: "${query}"`, `Page: ${w.title}`, `URL: ${w.url}`].join("\n");
     return consult(row, normalized(lexical), state === "act");
@@ -218,7 +220,6 @@ function lexicalObstacle({ title, url }: Where, lines: string[]): Probs {
 }
 
 // The page that arrived last, waiting for the model's next action as its truth.
-let arrival: Row | null = null;
 
 /** Obstacle on a page that just arrived. A decision only in Act. */
 function obstacle(page: string): Promise<Decision | null> | null {
@@ -230,7 +231,7 @@ function obstacle(page: string): Promise<Decision | null> | null {
     .slice(0, 40)
     .map(redact);
   const row = newRow("obstacle", "", { question: OBSTACLE });
-  arrival = row;
+  R().arrival = row;
   const run = where().then((w) => {
     row.state = [`Page: ${w.title}`, `URL: ${w.url}`, ...lines].join("\n");
     return consult(row, lexicalObstacle(w, lines), state === "act");
@@ -304,15 +305,16 @@ const SIGN_IN = /\b(sign in|log in|login|password)\b/i;
  */
 export function acted(ref: unknown): void {
   if (typeof ref !== "string") return;
-  for (const row of open) {
+  const r = R();
+  for (const row of r.open) {
     const key = Object.entries(row.refs ?? {}).find(([, r]) => r === ref)?.[0];
     if (key) setTruth(row, key, "auto");
   }
-  open = open.filter((r) => r.truth === undefined);
+  r.open = r.open.filter((o) => o.truth === undefined);
   const label = labelFor(ref);
-  if (arrival && label) {
-    setTruth(arrival, CONSENT.test(label) ? "cookie" : SIGN_IN.test(label) ? "login" : "ready", "auto");
-    arrival = null;
+  if (r.arrival && label) {
+    setTruth(r.arrival, CONSENT.test(label) ? "cookie" : SIGN_IN.test(label) ? "login" : "ready", "auto");
+    r.arrival = null;
   }
 }
 
@@ -320,10 +322,9 @@ export function acted(ref: unknown): void {
 
 // Vercel's listed Jev price: $0.042 per million input tokens, output free.
 const USD_PER_TOKEN = 0.042 / 1e6;
-let seeUsd = 0;
 /** What See spent on Jev this run, for the panel's cost line. */
-export const seeSpent = () => seeUsd;
-export const resetSeeSpent = () => void (seeUsd = 0);
+export const seeSpent = () => R().seeUsd;
+export const resetSeeSpent = () => void (R().seeUsd = 0);
 
 /**
  * See, for a find() the tree could not answer: a screenshot to Jev, and if it
@@ -353,7 +354,7 @@ export async function see(query: string): Promise<string | null> {
   const [w, r] = await Promise.all([where(), askBox(p, { data: shot.data, format: "jpeg" }, q)]);
   const ms = Math.round(performance.now() - t0);
   row.state = [`Find: "${q}"`, `Page: ${w.title}`, `URL: ${w.url}`].join("\n");
-  if (r) seeUsd += r.tokens * USD_PER_TOKEN;
+  if (r) R().seeUsd += r.tokens * USD_PER_TOKEN;
   const probs = r ? { yes: r.present, no: 1 - r.present } : undefined;
   row.answers.jev = r ? { p: probs, choice: argmax(probs!), ms, box: r.box } : { choice: null, ms };
   const d = probs && decide(probs, temperature("jev", "see"));
@@ -366,7 +367,7 @@ export async function see(query: string): Promise<string | null> {
       const ref = await callPanel("point", { x, y, query: q });
       row.refs = { yes: ref };
       // The model clicking it is the truth: open like a Pick row.
-      open = [...open.slice(-(OPEN_CAP - 1)), row];
+      R().open = [...R().open.slice(-(OPEN_CAP - 1)), row];
       line = `${ref} [point] "${q}" at ${x},${y} (See, from a screenshot: p=${d.p})`;
     } catch {}
   }
@@ -376,8 +377,8 @@ export async function see(query: string): Promise<string | null> {
 
 /** A task ended or was stopped: what is still open never gets a truth. */
 export function drop(): void {
-  open = [];
-  arrival = null;
+  R().open = [];
+  R().arrival = null;
 }
 
 // ------------------------------------------------------------------ Settle

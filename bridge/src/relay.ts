@@ -1,5 +1,6 @@
 import type { WebSocket } from "ws";
 import type { Second } from "./second.ts";
+import { runId } from "./run.ts";
 
 /**
  * The bridge's half of the tool path: an MCP tool call arrives over HTTP, has to
@@ -73,7 +74,9 @@ export const panelConnected = () => panel?.readyState === 1;
  */
 export function sendPanel(payload: Record<string, unknown>): boolean {
   if (!panelConnected()) return false;
-  panel!.send(JSON.stringify(payload));
+  // Stamped with the run it is sent from, so a note reaches that run's transcript;
+  // "" (outside any run) means the lane on screen to the panel.
+  panel!.send(JSON.stringify({ run: runId(), ...payload }));
   return true;
 }
 
@@ -114,7 +117,7 @@ export function callPanel(
       reject(new Error(`${name} timed out after ${TIMEOUT_MS / 1000}s`));
     }, TIMEOUT_MS);
     pending.set(id, { resolve, reject, timer });
-    panel!.send(JSON.stringify({ type: "tool", id, name, args, label }));
+    panel!.send(JSON.stringify({ type: "tool", id, name, args, label, run: runId() }));
   });
 }
 
@@ -134,7 +137,7 @@ export function askPanel(action: string, labels?: { ok: string; no: string }, se
     gatePending.set(id, { resolve, timer });
     // `labels` only rename the buttons: an answer is still approved or not.
     // `second` is shown on the card (second.ts); it decides nothing here.
-    panel!.send(JSON.stringify({ type: "gate", id, action, ...labels, ...(second && { second }) }));
+    panel!.send(JSON.stringify({ type: "gate", id, action, run: runId(), ...labels, ...(second && { second }) }));
   });
 }
 

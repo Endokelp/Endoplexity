@@ -116,6 +116,9 @@ export function writeCodexConfig(port: number, token: string, dir: string = CODE
     "",
     "[mcp_servers.endo]",
     `url = ${str(`http://127.0.0.1:${port}/mcp?token=${encodeURIComponent(token)}`)}`,
+    // The run the calls belong to (run.ts): Codex sends this header with the
+    // value of ENDO_RUN, which the spawn sets.
+    `env_http_headers = { "X-Endo-Run" = "ENDO_RUN" }`,
     "tool_timeout_sec = 120",
     `default_tools_approval_mode = "approve"`,
     "",
@@ -227,13 +230,14 @@ export function runCodex(
   model: string,
   onEvent: (event: Record<string, unknown>) => void,
   resume?: string,
+  run = "",
 ): ChildProcess {
   const child = spawn(resolveCodex(), codexArgs(prompt, model, resume), {
     cwd: tmpdir(),
     windowsHide: true,
     // stdin ignored: exec otherwise waits on "Reading additional input from stdin".
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...codexEnv(), CODEX_HOME },
+    env: { ...codexEnv(), CODEX_HOME, ENDO_RUN: run },
   });
 
   const toPanel = codexEvents(model);

@@ -139,7 +139,13 @@ const BRIEFING = [
 export function writeMcpConfig(port: number, token: string): string {
   const config = {
     mcpServers: {
-      endo: { type: "http", url: `http://127.0.0.1:${port}/mcp?token=${encodeURIComponent(token)}` },
+      // Which run the calls belong to (run.ts): claude expands ${ENDO_RUN}
+      // from its own env, which the spawn sets, so one file serves every run.
+      endo: {
+        type: "http",
+        url: `http://127.0.0.1:${port}/mcp?token=${encodeURIComponent(token)}`,
+        headers: { "X-Endo-Run": "${ENDO_RUN}" },
+      },
     },
   };
   writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
@@ -241,7 +247,7 @@ export const claudeArgs = (model: string, resume?: string): string[] => [
  * adapter in a process of its own, and the route is the one door both share.
  * Fire and forget: a lost reset costs one confusing delta, never data.
  */
-function forget(): void {
+function forget(run: string): void {
   let url: URL;
   try {
     url = new URL(JSON.parse(readFileSync(CONFIG_PATH, "utf8")).mcpServers.endo.url);
@@ -249,6 +255,7 @@ function forget(): void {
     return;
   }
   url.pathname = "/forget";
+  url.searchParams.set("run", run);
   fetch(url, { method: "POST" }).catch(() => {});
 }
 
@@ -289,6 +296,7 @@ export function runClaude(
   model: string,
   onEvent: (event: Record<string, unknown>) => void,
   resume?: string,
+  run = "",
 ): Run {
   const child = spawn(
     "claude",
@@ -301,7 +309,7 @@ export function runClaude(
       cwd: tmpdir(),
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1" },
+      env: { ...process.env, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1", ENDO_RUN: run },
     },
   );
 
@@ -328,7 +336,7 @@ export function runClaude(
     let event;
     try { event = JSON.parse(line); } catch {}
     if (!event || typeof event !== "object") return onEvent({ type: "stray", text: line });
-    if (event.type === "system" && (event.subtype === "task_started" || event.subtype === "task_notification")) forget();
+    if (event.type === "system" && (event.subtype === "task_started" || event.subtype === "task_notification")) forget(run);
     failure = errorIn(event) ?? failure;
     // stdin open is claude waiting for the next message. A result with nothing
     // queued behind it is the run's end, so close it and let claude exit; a

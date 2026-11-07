@@ -14,6 +14,7 @@
  */
 
 import { labelFor, controls } from "./page.ts";
+import { perRun } from "./run.ts";
 
 // ponytail: a label heuristic, not semantic understanding of the page — the
 // known ceiling. False positives ("Apply filters") prompt harmlessly, one
@@ -49,7 +50,9 @@ const MUTATING = new Set(["click", "type", "key", "select", "upload", "navigate"
 // text and never carries an origin, and getting one means a new round trip
 // to the panel. Add per-origin scoping if a task that hops origins mid-run
 // turns out to need it.
-let approvedTools = new Set<string>();
+//
+// Per run (run.ts), with the plan below: approvals never cross between runs.
+const S = perRun(() => ({ approvedTools: new Set<string>(), plan: [] as string[], drawn: [] as string[] }));
 
 /**
  * Record that the human approved this kind of interaction, so watch mode
@@ -61,13 +64,13 @@ let approvedTools = new Set<string>();
  */
 export function rememberApproval(name: string, args?: Record<string, unknown>): void {
   void args;
-  approvedTools.add(name);
+  S().approvedTools.add(name);
 }
 
 // Clear the approval memory. Call at the start of every new task — one run's
 // "yes, always" answers must not leak into the next.
 export function resetApprovals(): void {
-  approvedTools = new Set();
+  S().approvedTools = new Set();
 }
 
 /**
@@ -76,7 +79,6 @@ export function resetApprovals(): void {
  * Enforced here, in every mode including trust, where Claude in Chrome's
  * `update_plan` is a screen the model is trusted to respect.
  */
-let plan: string[] = [];
 
 /** The panel's list as hosts: scheme, path, port, `*.` and `www.` dropped. Untrusted, so capped. */
 export function cleanPlan(raw: unknown): string[] {
@@ -91,11 +93,10 @@ export function cleanPlan(raw: unknown): string[] {
 
 // The list as the user drew it, kept apart for the audit: a host approved
 // mid-run is the human's call on that run, not part of the plan they wrote.
-let drawn: string[] = [];
-export const setPlan = (raw: unknown) => void (plan = drawn = cleanPlan(raw));
-export const planOf = () => ({ drawn, approved: plan.filter((host) => !drawn.includes(host)) });
+export const setPlan = (raw: unknown) => void (S().plan = S().drawn = cleanPlan(raw));
+export const planOf = () => ({ drawn: S().drawn, approved: S().plan.filter((host) => !S().drawn.includes(host)) });
 /** The human approved acting on `host`: it stays allowed for the rest of the task. */
-export const allowHost = (host: string) => void (plan = plan.length && host ? [...plan, host] : plan);
+export const allowHost = (host: string) => void (S().plan = S().plan.length && host ? [...S().plan, host] : S().plan);
 
 function hostOf(url: string): string {
   try {
@@ -118,6 +119,7 @@ function hostOf(url: string): string {
  * and the host an approval allows; or null.
  */
 export function offPlan(name: string, args: Record<string, unknown>, here: string): { asked: string; why: string; host: string } | null {
+  const { plan } = S();
   if (!plan.length || !MUTATING.has(name) || name === "back" || name === "forward") return null;
   const moves = name === "navigate" || name === "use_tab";
   if (moves && typeof args.url !== "string") return null;
@@ -211,7 +213,7 @@ export function check(
 
   if (mode === "watch") {
     if (!MUTATING.has(name)) return null;
-    if (approvedTools.has(name)) return null;
+    if (S().approvedTools.has(name)) return null;
     return describe(name, args, fresh ?? undefined);
   }
 

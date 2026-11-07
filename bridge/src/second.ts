@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { CODEX_HOME, FEATURES_OFF, codexEnv, outside, resolveCodex } from "./codex.ts";
+import { perRun } from "./run.ts";
 
 /**
  * The second key (Phase 20). When the gate is about to ask the human, a cheap
@@ -188,7 +189,8 @@ const spawnJudge: Judge = (by, prompt, signal) =>
 
 // null until index.ts says the user wants it for this task: tests that import
 // mcp.ts never spawn a CLI.
-let current: (() => Run) | null = null;
+// Per run: each run guards itself with its own engine and words.
+const S = perRun((): { current: (() => Run) | null } => ({ current: null }));
 let judge: Judge = spawnJudge;
 let timeout = TIMEOUT_MS;
 
@@ -199,7 +201,7 @@ let timeout = TIMEOUT_MS;
  * `use` and `ms` replace the CLI and the timeout, for tests.
  */
 export function guard(read: (() => Run) | null, use: Judge = spawnJudge, ms = TIMEOUT_MS): void {
-  current = read;
+  S().current = read;
   judge = use;
   timeout = ms;
 }
@@ -210,7 +212,7 @@ export function guard(read: (() => Run) | null, use: Judge = spawnJudge, ms = TI
  * without a verdict, shown as "unavailable".
  */
 export async function secondKey(action: string, page: string[]): Promise<Second | undefined> {
-  const run = current?.();
+  const run = S().current?.();
   if (!run?.engine) return undefined;
   const by = judgeFor(run.engine);
   const signal = AbortSignal.timeout(timeout);

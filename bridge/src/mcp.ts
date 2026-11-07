@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { callPanel, askPanel, panelConnected, sendPanel } from "./relay.ts";
+import { cleanRun, inRun, perRun } from "./run.ts";
 import { allowHost, check, IRREVERSIBLE, offPlan, planOf, reads, rememberApproval, resetApprovals, setPlan, type Mode } from "./gate.ts";
 import { remember, labelFor, labelsOf, find, hasPage, near, controls } from "./page.ts";
 import { secondKey } from "./second.ts";
@@ -80,7 +81,14 @@ const full = z
 // Exported for gate.test.ts, which drives it directly rather than standing up
 // a real MCP HTTP round trip just to see the isError shape.
 const MODES = new Set<Mode>(["watch", "normal", "trust"]);
-let mode: Mode | undefined;
+// Per run (run.ts): two runs no longer share a mode, a lock, a Stop or a step log.
+const S = perRun(() => ({
+  mode: undefined as Mode | undefined,
+  line: Promise.resolve() as Promise<unknown>,
+  epoch: 0,
+  actions: [] as string[],
+  dropped: 0,
+}));
 
 /**
  * The human's autonomy choice for the run about to start. Anything that is not
@@ -94,13 +102,13 @@ let mode: Mode | undefined;
  * run are not approved on the next.
  */
 export function setMode(next: unknown, plan?: unknown): void {
-  mode = MODES.has(next as Mode) ? (next as Mode) : undefined;
+  S().mode = MODES.has(next as Mode) ? (next as Mode) : undefined;
   resetApprovals();
   setPlan(plan);
 }
 
 /** The mode as the gate applies it, for the audit's header. */
-export const modeNow = (): string => mode ?? "normal";
+export const modeNow = (): string => S().mode ?? "normal";
 
 // Tools whose result is not a page: everything else in tools.js hands back the
 // page it produced, and only pages may reach remember().
@@ -149,9 +157,9 @@ function around(name: string, args: Record<string, unknown>): string[] {
  * tab's URL before the call, read only while a plan or the audit needs it.
  */
 async function gated(name: string, args: Record<string, unknown>, here = ""): Promise<string | null> {
-  const need = reads(name, args, mode);
+  const need = reads(name, args, S().mode);
   const fresh = await readFor(need, args);
-  let needs = check(name, args, mode, fresh);
+  let needs = check(name, args, S().mode, fresh);
   // The Gate reflex weighs the same fresh label the regex just did. It can add
   // a prompt the regex missed and never removes one: it is told the regex's
   // verdict, and a click already gated is only logged.
@@ -184,17 +192,17 @@ async function gated(name: string, args: Record<string, unknown>, here = ""): Pr
  * meet the same page: run alongside, a use_tab between a click's read and the
  * click moved it to another tab's Submit, unasked (Phase 15 review). The model
  * can issue tool calls in parallel, so this is not hypothetical.
- * ponytail: one global lock. One tab is driven at a time anyway; Phase 21
- * (parallel runs) makes it per tab.
+ * ponytail: one lock per run, so two runs do not wait on each other; one run
+ * drives one tab, so a lock per tab would only matter if a run drove two.
  */
-let line: Promise<unknown> = Promise.resolve();
 type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
 function serial(job: (task: number) => Promise<Result>): Promise<Result> {
   // The task a call belongs to is the one running when it was made, not when
   // its turn comes: a call queued behind a gate prompt can outlive a Stop.
-  const task = epoch;
-  const run = line.then(() => (task === epoch ? job(task) : STOPPED));
-  line = run.catch(() => {});
+  const s = S();
+  const task = s.epoch;
+  const run = s.line.then(() => (task === s.epoch ? job(task) : STOPPED));
+  s.line = run.catch(() => {});
   return run;
 }
 
@@ -202,10 +210,10 @@ function serial(job: (task: number) => Promise<Result>): Promise<Result> {
  * Bumped when the human stops a task, or it ends (index.ts). Killing the CLI
  * stops new calls, not ones already in the bridge: a batch mid-way, or a call
  * waiting its turn, would go on clicking. Each checks this before it acts.
+ * Per run: Stop on one run leaves the other going.
  */
-let epoch = 0;
 export function stop(): void {
-  epoch++;
+  S().epoch++;
   drop();
 }
 const STOPPED: Result = { content: [{ type: "text", text: "stopped — the human stopped this task" }], isError: true };
@@ -221,7 +229,7 @@ export const relay = (name: string, args: Record<string, unknown>, as = args) =>
     await opening(name);
     const at = targetOf(args.ref);
     const res = await relayNow(name, args, task);
-    if (!res.isError && task === epoch) track(name, as, at);
+    if (!res.isError && task === S().epoch) track(name, as, at);
     return res;
   });
 
@@ -259,13 +267,10 @@ async function arrivalNote(): Promise<string> {
  */
 const ACTIONS = new Set(["navigate", "use_tab", "click", "type", "select", "key", "scroll", "hover", "upload", "back", "forward"]);
 const STEPS_KEPT = 40;
-let actions: string[] = [];
-let dropped = 0;
 export function resetSteps(): void {
-  actions = [];
-  dropped = 0;
+  Object.assign(S(), { actions: [], dropped: 0 });
 }
-export const steps = (): string[] => [...(dropped ? [`(${dropped} earlier steps not shown)`] : []), ...actions];
+export const steps = (): string[] => [...(S().dropped ? [`(${S().dropped} earlier steps not shown)`] : []), ...S().actions];
 
 /**
  * `on` is what the step acted on, read before it ran: refs die with the page.
@@ -275,8 +280,9 @@ export const steps = (): string[] => [...(dropped ? [`(${dropped} earlier steps 
 function logStep(name: string, on: string, outcome: string, args: Record<string, unknown> = {}, here = ""): void {
   if (!ACTIONS.has(name)) return;
   const result = outcome.split("\n")[0].slice(0, 160);
-  actions.push(`${actions.length + dropped + 1}. ${name}${on && ` ${on}`}: ${result}`);
-  if (actions.length > STEPS_KEPT) (actions.shift(), dropped++);
+  const s = S();
+  s.actions.push(`${s.actions.length + s.dropped + 1}. ${name}${on && ` ${on}`}: ${result}`);
+  if (s.actions.length > STEPS_KEPT) (s.actions.shift(), s.dropped++);
   const value = name === "type" ? args.text : name === "select" ? args.value : undefined;
   if (auditing()) audited({ url: here, tool: name, on, result, ...(typeof value === "string" && { value }) }, SECRET.test(on));
 }
@@ -301,14 +307,14 @@ async function actNow(name: string, args: Record<string, unknown>, task: number,
   const denied = await gated(name, args, here);
   if (denied) return { content: [{ type: "text" as const, text: denied }], isError: true };
   // An approval can arrive after Stop: the prompt stays up until answered.
-  if (task !== epoch) return STOPPED;
+  if (task !== S().epoch) return STOPPED;
   try {
     // The label is what turns "clicked @f0e38" into "clicked Submit
     // application" in the panel. page.ts already keeps the ref->label map for
     // the gate, so this costs a lookup rather than a round trip.
     const text = await callPanel(name, args, typeof args.ref === "string" ? labelFor(args.ref) : undefined);
     if (!NO_PAGE.has(name)) remember(text);
-    const swap = ARRIVALS.has(name) ? await arrived(text, () => task === epoch) : null;
+    const swap = ARRIVALS.has(name) ? await arrived(text, () => task === S().epoch) : null;
     const note = name === "navigate" || name === "use_tab" ? await arrivalNote() : "";
     if (swap) return { content: [{ type: "text" as const, text: swap.text + note }], ...(swap.isError ? { isError: true } : {}) };
     return { content: [{ type: "text" as const, text: text + note }] };
@@ -371,14 +377,14 @@ async function batchNow(steps: Step[], task: number): Promise<Result> {
   let stopped = false;
   for (const [i, { do: name, ...args }] of steps.entries()) {
     const what = `${i + 1}. ${name} ${args.ref ?? args.name ?? args.direction ?? ""}`.trimEnd();
-    if (task === epoch) acted(args.ref);
+    if (task === S().epoch) acted(args.ref);
     // Every ref in a batch is on the page from before it (quiet steps read
     // nothing), so each step's element is described from that page.
-    if (task === epoch) await opening(name);
+    if (task === S().epoch) await opening(name);
     const at = targetOf(args.ref);
-    const here = task === epoch ? await urlNow() : "";
-    const denied = task === epoch ? await gated(name, args, here) : null;
-    if (task !== epoch) {
+    const here = task === S().epoch ? await urlNow() : "";
+    const denied = task === S().epoch ? await gated(name, args, here) : null;
+    if (task !== S().epoch) {
       log.push(`${what}: not run — the human stopped this task`);
       stopped = true;
       break;
@@ -452,7 +458,7 @@ async function replayNow(id: string, raw: unknown, task: number): Promise<Replay
   const out = (ran: number, stop?: Replay["stop"]): Replay => ({ skill, vars, ran, of, ...(stop && { stop }) });
 
   for (const [i, s] of skill.steps.entries()) {
-    if (task !== epoch) return out(i, { at: i, why: "the human stopped this task", final: true });
+    if (task !== S().epoch) return out(i, { at: i, why: "the human stopped this task", final: true });
     const args = await argsFor(s, vars);
     if ("why" in args) {
       stopped(id, skill, base, i);
@@ -463,7 +469,7 @@ async function replayNow(id: string, raw: unknown, task: number): Promise<Replay
       const text = res.content[0].text;
       // ponytail: a panel that drops mid-replay ends it rather than retrying
       // the step, which may already have landed (a second click, double typing).
-      const final = text === DENIED || res === STOPPED || task !== epoch || !panelConnected();
+      const final = text === DENIED || res === STOPPED || task !== S().epoch || !panelConnected();
       if (!final) stopped(id, skill, base, i);
       const stop = { at: i, why: text.split("\n")[0].replace(/^error: /, ""), final };
       return final ? out(i, stop) : withPage(out(i, stop));
@@ -894,20 +900,23 @@ async function readJson(req: IncomingMessage) {
  * stream. Cheap — registering five tools costs nothing next to a page snapshot.
  */
 export async function handleMcp(req: IncomingMessage, res: ServerResponse) {
-  let body: unknown;
-  try {
-    body = req.method === "POST" ? await readJson(req) : undefined;
-  } catch {
-    return void res.writeHead(400, { "content-type": "application/json" }).end(
-      JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } }),
-    );
-  }
+  const run = cleanRun(req.headers["x-endo-run"]);
+  return inRun(run, async () => {
+    let body: unknown;
+    try {
+      body = req.method === "POST" ? await readJson(req) : undefined;
+    } catch {
+      return void res.writeHead(400, { "content-type": "application/json" }).end(
+        JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } }),
+      );
+    }
 
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
-    enableJsonResponse: true,
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+    res.on("close", () => void transport.close());
+    await build().connect(transport);
+    await transport.handleRequest(req, res, body);
   });
-  res.on("close", () => void transport.close());
-  await build().connect(transport);
-  await transport.handleRequest(req, res, body);
 }

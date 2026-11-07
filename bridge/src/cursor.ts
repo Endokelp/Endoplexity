@@ -96,7 +96,12 @@ export function writeCursorConfig(port: number, token: string, dir: string = CON
     JSON.stringify(
       {
         mcpServers: {
-          endo: { type: "http", url: `http://127.0.0.1:${port}/mcp?token=${encodeURIComponent(token)}` },
+          // The run the calls belong to (run.ts), from the env the spawn sets.
+          endo: {
+            type: "http",
+            url: `http://127.0.0.1:${port}/mcp?token=${encodeURIComponent(token)}`,
+            headers: { "X-Endo-Run": "${env:ENDO_RUN}" },
+          },
         },
       },
       null,
@@ -187,6 +192,7 @@ export function runCursor(
   model: string,
   onEvent: (event: Record<string, unknown>) => void,
   resume?: string,
+  run = "",
 ): ChildProcess {
   const { command, leading } = resolveCursor();
   const child = spawn(
@@ -203,6 +209,7 @@ export function runCursor(
         CURSOR_CONFIG_DIR: CONFIG_DIR,
         USERPROFILE: HOME_DIR,
         HOME: HOME_DIR,
+        ENDO_RUN: run,
       },
     },
   );

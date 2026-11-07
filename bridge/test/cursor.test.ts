@@ -34,6 +34,8 @@ test("the isolated profile exposes endo and nothing the operator configured", ()
   const { mcpServers } = read(seed(), join("home", ".cursor", "mcp.json"));
   assert.deepEqual(Object.keys(mcpServers), ["endo"]);
   assert.match(mcpServers.endo.url, /^http:\/\/127\.0\.0\.1:4242\/mcp\?token=s3cret$/);
+  // cursor expands this from the env each spawn sets: the call names its run (run.ts).
+  assert.deepEqual(mcpServers.endo.headers, { "X-Endo-Run": "${env:ENDO_RUN}" });
 });
 
 test("rewriting the config keeps the session cursor-agent login stored beside it", () => {

@@ -8,6 +8,7 @@
  */
 
 import { UNCHANGED } from "../../extension/ax.js";
+import { perRun } from "./run.ts";
 
 // One actionable line out of serialize(): "@ref [role] "name"", optionally
 // followed by a value or flags the gate does not need.
@@ -18,8 +19,8 @@ const HEADING = /^\s*\[heading\]\s+"([^"]*)"/;
 const CONTINUATION = /^… \d+ earlier lines not shown/;
 const refOf = (line: string) => /^\s*(@\S+)/.exec(line)?.[1];
 
-let lines: string[] = [];
-let labels = new Map<string, string>();
+// Per run (run.ts): each run drives its own tab, so it has its own page.
+const S = perRun(() => ({ lines: [] as string[], labels: new Map<string, string>() }));
 
 /** The ref -> label map of a page's text, without keeping it (the gate's peek). */
 export function labelsOf(text: string | string[]): Map<string, string> {
@@ -32,8 +33,7 @@ export function labelsOf(text: string | string[]): Map<string, string> {
 }
 
 function set(next: string[]): void {
-  lines = next;
-  labels = labelsOf(next);
+  Object.assign(S(), { lines: next, labels: labelsOf(next) });
 }
 
 const isMarker = (line: string) => line.trim().startsWith("… ");
@@ -60,7 +60,7 @@ export function remember(text: string): void {
   // the marker could drift silently into a gate that never fires.
   const at = all.indexOf(UNCHANGED);
   if (at >= 0) {
-    const next = [...lines];
+    const next = [...S().lines];
     const patch = all.slice(at + 1).filter((l) => l[0] === "+" || l[0] === "-");
     // Removals come first in a delta, so a control whose label merely changed
     // is deleted and re-added in that order rather than deleted afterwards.
@@ -94,7 +94,7 @@ export function remember(text: string): void {
     // A `from:` window of the same read: refs keep their meaning across
     // windows, so merge. Replacing would drop a Submit button read in the
     // first window and let it click ungated.
-    const next = [...lines];
+    const next = [...S().lines];
     for (const l of all) {
       if (isMarker(l)) continue;
       const ref = refOf(l);
@@ -113,19 +113,20 @@ export function remember(text: string): void {
 // stale/unknown ref — same "not on the current page" case check() treats as
 // nothing worth blocking on.
 export function labelFor(ref: string): string | undefined {
-  return labels.get(ref);
+  return S().labels.get(ref);
 }
 
 export function controls(): Iterable<[ref: string, label: string]> {
-  return labels;
+  return S().labels;
 }
 
 export function hasPage(): boolean {
-  return lines.length > 0;
+  return S().lines.length > 0;
 }
 
 /** Up to n lines either side of a ref's line, without it: what a control sits among, for a reflex. */
 export function near(ref: string, n = 3): string[] {
+  const { lines } = S();
   const i = lines.findIndex((l) => refOf(l) === ref);
   if (i < 0) return [];
   return [...lines.slice(Math.max(0, i - n), i), ...lines.slice(i + 1, i + 1 + n)].map((l) => l.trim());
@@ -186,6 +187,7 @@ export function find(query: string, limit = 5): { ref: string; line: string; p: 
   if (!words.length && !roles.size) return [];
 
   const scored: { ref: string; line: string; score: number }[] = [];
+  const { lines } = S();
   let heading = "";
   lines.forEach((raw, i) => {
     const h = HEADING.exec(raw);

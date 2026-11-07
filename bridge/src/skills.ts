@@ -21,6 +21,7 @@ import { z } from "zod";
 import { controls, labelFor, near } from "./page.ts";
 import { defaultHome } from "./reflex.ts";
 import { redact } from "./reflexes.ts";
+import { perRun } from "./run.ts";
 
 const ACTIONS = ["navigate", "use_tab", "click", "type", "select", "key", "scroll", "hover", "upload", "back", "forward"] as const;
 type Action = (typeof ACTIONS)[number];
@@ -180,22 +181,20 @@ export function list() {
 
 // ------------------------------------------------------------------ trace
 
-let trace: SkillStep[] = [];
-// Why this task's trace cannot become a skill, or "".
-let broken = "";
-let words = "";
-let replayed = false;
-let heal: { id: string; skill: Skill; base: number; at: number } | null = null;
-let notes = 0;
+// One copy per run (run.ts), so parallel runs each record their own trace.
+const S = perRun(() => ({
+  trace: [] as SkillStep[],
+  // Why this task's trace cannot become a skill, or "".
+  broken: "",
+  words: "",
+  replayed: false,
+  heal: null as { id: string; skill: Skill; base: number; at: number } | null,
+  notes: 0,
+}));
 
 /** A fresh task: the user's own words, which become the skill's task. */
 export function begin(task: string): void {
-  trace = [];
-  broken = "";
-  words = task.slice(0, 4000);
-  replayed = false;
-  heal = null;
-  notes = 0;
+  Object.assign(S(), { trace: [], broken: "", words: task.slice(0, 4000), replayed: false, heal: null, notes: 0 });
 }
 
 /** What a ref points at, as a step records it. Taken before the action, from the page the model read. */
@@ -212,42 +211,42 @@ export function targetOf(ref: unknown): Target | undefined {
  * started on has to become step 1, or a replay would act on whatever is open.
  */
 export const needsStart = (tool: string) =>
-  !!home && !trace.length && !broken && RECORDED.has(tool) && tool !== "navigate" && tool !== "use_tab";
+  !!home && !S().trace.length && !S().broken && RECORDED.has(tool) && tool !== "navigate" && tool !== "use_tab";
 
 /** Step 1 from the tab's URL (origin and path: a query string is where session tokens live). */
 export function start(url: string): void {
-  if (/^(https?|file):/.test(url)) trace.push({ do: "navigate", url });
-  else broken ||= "it started on a page it cannot return to";
+  if (/^(https?|file):/.test(url)) S().trace.push({ do: "navigate", url });
+  else S().broken ||= "it started on a page it cannot return to";
 }
 
 /** A model's action that ran. Reads are not steps; an element with no label cannot be placed again. */
 export function track(tool: string, args: Record<string, unknown>, at?: Target): void {
   if (!home || !RECORDED.has(tool)) return;
-  if (tool === "use_tab" && typeof args.url !== "string") return void (broken ||= "it switched to another tab");
+  if (tool === "use_tab" && typeof args.url !== "string") return void (S().broken ||= "it switched to another tab");
   if ((NEEDS[tool as Action].includes("target") || (tool === "scroll" && args.ref)) && !at) {
-    return void (broken ||= `it used ${tool} on an element with no label`);
+    return void (S().broken ||= `it used ${tool} on an element with no label`);
   }
-  if (trace.length >= MAX_STEPS) return void (broken ||= `it took more than ${MAX_STEPS} steps`);
+  if (S().trace.length >= MAX_STEPS) return void (S().broken ||= `it took more than ${MAX_STEPS} steps`);
   const s: SkillStep = { do: tool as Action };
   if (at) s.target = at;
   for (const k of ["url", "text", "value", "name", "direction", "file", "match"] as const) {
     if (typeof args[k] === "string") (s as Record<string, unknown>)[k] = args[k];
   }
-  trace.push(s);
+  S().trace.push(s);
 }
 
 /** A replay is starting: where its steps begin in this task's trace. */
 export function replaying(): number {
-  replayed = true;
-  return trace.length;
+  S().replayed = true;
+  return S().trace.length;
 }
 
 /** A replayed step, recorded as the skill has it, {{vars}} and all. */
-export const replayedStep = (s: SkillStep) => void trace.push(s);
+export const replayedStep = (s: SkillStep) => void S().trace.push(s);
 
 /** The replay stopped at step `at` for want of a target: what the model does next is the heal. */
 export function stopped(id: string, skill: Skill, base: number, at: number): void {
-  heal = { id, skill, base, at };
+  S().heal = { id, skill, base, at };
 }
 
 // ------------------------------------------------------------------ replay
@@ -373,9 +372,10 @@ function propose(p: Proposal): void {
  * is written until the user approves it.
  */
 export function finish(ok: boolean): void {
-  const h = heal;
-  heal = null;
-  if (!home || !ok || broken) return;
+  const st = S();
+  const { heal: h, trace, words } = st;
+  st.heal = null;
+  if (!home || !ok || st.broken) return;
   if (h) {
     const next = asSkill(trace.slice(h.base), h.skill.vars, h.skill.name, h.skill.task);
     if (!next.steps.length || JSON.stringify(next.steps) === JSON.stringify(h.skill.steps)) return;
@@ -383,7 +383,7 @@ export function finish(ok: boolean): void {
     return;
   }
   // A run of navigates is reading, not a procedure worth keeping.
-  if (replayed || trace.length < 2 || !trace.some((s) => s.target) || !hostOf(trace[0].url ?? "")) return;
+  if (st.replayed || trace.length < 2 || !trace.some((s) => s.target) || !hostOf(trace[0].url ?? "")) return;
   const name = slug(words.split(/\s+/).slice(0, 5).join(" "), "-", 40) || "skill";
   // One offer at a time: the newest run is the one the user just watched.
   proposals = proposals.filter((p) => p.kind !== "skill");
@@ -449,10 +449,10 @@ const notePath = (host: string) => join(home!, "sites", `${host}.md`);
 export function proposeNote(host: string, text: string): string {
   if (!home) return "error: notes are not available in this bridge";
   if (!host) return "error: there is no page to note anything about yet";
-  if (notes >= NOTES_PER_TASK) return `error: ${NOTES_PER_TASK} notes are already waiting for the user from this run — do not propose more`;
+  if (S().notes >= NOTES_PER_TASK) return `error: ${NOTES_PER_TASK} notes are already waiting for the user from this run — do not propose more`;
   const clean = text.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, NOTE_CAP);
   if (!clean) return "error: the note is empty";
-  notes++;
+  S().notes++;
   propose({ id: `p${++pseq}`, kind: "note", host, text: clean });
   return "proposed — the user sees it and decides, and nothing is saved unless they approve it. Carry on with the task.";
 }

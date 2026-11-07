@@ -18,7 +18,8 @@ const config = () => {
     const header = /^\[(.+)\]$/.exec(line);
     if (header) table = `${header[1]}.`;
     const pair = /^([\w.]+) = (.+)$/.exec(line);
-    if (pair) keys[table + pair[1]] = JSON.parse(pair[2]);
+    // An inline table is not JSON: kept as its text.
+    if (pair) keys[table + pair[1]] = /^\{.*\}$/.test(pair[2]) ? pair[2] : JSON.parse(pair[2]);
   }
   return keys;
 };
@@ -43,9 +44,11 @@ test("endo is the only MCP server, approved, with room for a gated click", () =>
   const keys = config();
   assert.deepEqual(
     Object.keys(keys).filter((key) => key.startsWith("mcp_servers.")).map((key) => key.split(".")[1]),
-    ["endo", "endo", "endo"],
+    ["endo", "endo", "endo", "endo"],
   );
   assert.equal(keys["mcp_servers.endo.url"], "http://127.0.0.1:4242/mcp?token=s3cret");
+  // Each spawn sets ENDO_RUN, so a call names its run (run.ts) with no per-run file.
+  assert.equal(keys["mcp_servers.endo.env_http_headers"], '{ "X-Endo-Run" = "ENDO_RUN" }');
   assert.equal(keys["mcp_servers.endo.default_tools_approval_mode"], "approve");
   // 60s for the human at the gate plus 30s for the panel, per relay.ts.
   assert.ok(Number(keys["mcp_servers.endo.tool_timeout_sec"]) >= 90);
@@ -87,7 +90,7 @@ test("nothing that bypasses the sandbox or approvals reaches the spawn", () => {
 test("the spawn runs on the subscription, never an API key, in any spelling", () => {
   assert.deepEqual(API_KEYS, ["CODEX_API_KEY", "OPENAI_API_KEY"]);
   assert.match(code, /!API_KEYS\.includes\(key\.toUpperCase\(\)\)/);
-  assert.match(code, /env: \{ \.\.\.codexEnv\(\), CODEX_HOME \}/);
+  assert.match(code, /env: \{ \.\.\.codexEnv\(\), CODEX_HOME, ENDO_RUN: run \}/);
   // The second key's judge spawns codex as well, on the same terms.
   const judge = readFileSync(fileURLToPath(new URL("../src/second.ts", import.meta.url)), "utf8");
   assert.match(judge, /env: \{ \.\.\.codexEnv\(\), CODEX_HOME \}/);

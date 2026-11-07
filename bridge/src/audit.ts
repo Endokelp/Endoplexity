@@ -1,4 +1,5 @@
 import type { Second } from "./second.ts";
+import { perRun } from "./run.ts";
 
 /**
  * The audit log (Phase 20): what a task did, in a form someone can read
@@ -23,25 +24,20 @@ const CAP = 2_000;
 // Off until index.ts turns it on: reading the tab URL for each entry is a call
 // to the panel, and the tests' fake panels answer only what they expect.
 let on = false;
-let entries: Entry[] = [];
-let held: Gated | undefined;
-let started = new Date();
-let secrets: string[] = [];
+// Per run (run.ts): each run has its own log.
+const S = perRun(() => ({ entries: [] as Entry[], held: undefined as Gated | undefined, started: new Date(), secrets: [] as string[] }));
 
 export const initAudit = () => void (on = true);
 export const auditing = () => on;
 
 /** A fresh task. A reply carries on the same log. */
 export function resetAudit(): void {
-  entries = [];
-  held = undefined;
-  started = new Date();
-  secrets = [];
+  Object.assign(S(), { entries: [], held: undefined, started: new Date(), secrets: [] });
 }
 
 /** The gate asked about the action that is about to be recorded. */
 export function gateDecided(g: Gated): void {
-  held = g;
+  S().held = g;
 }
 
 /**
@@ -50,20 +46,21 @@ export function gateDecided(g: Gated): void {
  * the task text too, where the user's own words can carry it.
  */
 export function audited(e: Omit<Entry, "at" | "gate">, secret = false): void {
-  const gate = held;
-  held = undefined;
+  const st = S();
+  const gate = st.held;
+  st.held = undefined;
   if (secret && e.value) {
-    if (e.value.length >= 4) secrets = [...secrets, e.value];
+    if (e.value.length >= 4) st.secrets = [...st.secrets, e.value];
     e = { ...e, value: "(redacted)" };
   }
-  if (entries.length < CAP) entries = [...entries, { ...e, at: new Date(), ...(gate && { gate }) }];
+  if (st.entries.length < CAP) st.entries = [...st.entries, { ...e, at: new Date(), ...(gate && { gate }) }];
 }
 
 // Page text and model text go in code spans: a label is written by a website,
 // and a Markdown viewer would otherwise render its links and images.
 const code = (s: string) => `\`${s.replaceAll("`", "'").replace(/[\r\n]+/g, " ").trim() || " "}\``;
 const time = (d: Date) => d.toTimeString().slice(0, 8);
-const hide = (s: string) => secrets.reduce((t, x) => t.replaceAll(x, "(redacted)"), s);
+const hide = (s: string) => S().secrets.reduce((t, x) => t.replaceAll(x, "(redacted)"), s);
 
 function second(s: Second | undefined): string {
   if (!s) return "second key off";
@@ -72,6 +69,7 @@ function second(s: Second | undefined): string {
 
 /** The file the panel saves. */
 export function auditMarkdown(meta: Meta): { name: string; markdown: string } {
+  const { entries, started } = S();
   const stamp = `${started.toLocaleDateString("en-CA")}-${time(started).slice(0, 5).replace(":", "")}`;
   const gates = entries.filter((e) => e.gate);
   const lines = [
