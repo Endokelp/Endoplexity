@@ -18,6 +18,11 @@ The strip under the title bar is **which tab is being driven**, and its state:
 the worst bug this project has had was a form filled perfectly in a tab nobody
 was watching, with every tool returning success.
 
+With two or more tasks going, a row of pills appears above it, one per lane.
+Each pill carries the lane's state the same way, plus `!` when that run is
+waiting on an approval; the approval card names the run it is for. A lane that
+is not running has a close button, which moves it to History.
+
 Everything the bridge sends is still kept verbatim under **Raw log** at the
 bottom, including messages the conversation drops. `endo.log()` returns it as a
 string, which is what to paste into a bug report.

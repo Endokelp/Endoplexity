@@ -12,7 +12,7 @@ click, type, fill forms, move between tabs, all through your existing `claude`,
 
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-1f6f4a)](LICENSE)
 [![Node](https://img.shields.io/badge/node-24%2B-1f6f4a)](package.json)
-[![Tests](https://img.shields.io/badge/tests-290%20passing-1f6f4a)](bridge/test)
+[![Tests](https://img.shields.io/badge/tests-297%20passing-1f6f4a)](bridge/test)
 [![API key](https://img.shields.io/badge/API%20key-not%20required-1f6f4a)](#what-it-costs)
 
 <img src="docs/demo.gif" width="100%" alt="Endoplexity opening three pricing pages in separate tabs and comparing their free tiers in one table">
@@ -209,6 +209,13 @@ hit **Run**. A couple of things worth knowing right away:
   (passwords redacted), and every approval with its verdict.
 - A fresh Run always attaches to whichever tab you're currently looking at,
   so open the page you want it working on *before* you press Run.
+- Press **+** while a task runs to start another beside it. Each runs in its
+  own lane, on its own tab and tab group, with its own approvals and its own
+  Stop; the pills under the title bar switch between them.
+- `npm run task -- "<task>"` starts a run from a terminal or from the OS
+  scheduler, in a lane and a background tab of its own, so it never takes the
+  page you are on. It runs only while Chrome and the panel are open.
+  [scripts/run-task.ts](scripts/run-task.ts) has a Task Scheduler line.
 
 Try something low-stakes first, like summarizing whatever page you're on
 before you point it at a form. For a deeper look at what each part of the
@@ -300,7 +307,7 @@ a full page once and then only the lines that changed afterward: 119,856 →
 ## Status
 
 Early. `v0.0.1`, and honest about it. The tool layer, approval gate, session
-continuity, and panel are all built and tested: **290 unit tests**, plus an
+continuity, and panel are all built and tested: **297 unit tests**, plus an
 in-panel self-test that drives the real CDP layer against a cross-origin
 fixture (run `await endo.selftest()` in the panel's own console).
 
@@ -320,7 +327,7 @@ Known gaps, stated rather than hidden:
 ## Development
 
 ```bash
-npm test     # 290 tests, node:test, no framework, no build step
+npm test     # 297 tests, node:test, no framework, no build step
 npm start    # run the bridge in the foreground to watch its log
 npm run reflex:train   # fine-tune the local Laya reflex model on your own logged decisions
 node scripts/live.ts launch   # the panel in Chrome for Testing, driven from a terminal
