@@ -269,6 +269,12 @@ function send(payload) {
   return true;
 }
 
+// The raw log follows its tail only while open (transcript.js raw), so it
+// starts at the newest line when you open it.
+logEl.closest("details")?.addEventListener("toggle", (e) => {
+  if (e.target.open) logEl.scrollTop = logEl.scrollHeight;
+});
+
 // Reflexes: the sheet only draws the bridge's last message; Settle's shadow
 // measurements go back as log rows. A measurement made while disconnected is
 // dropped silently — it is a statistic, not worth a line in the transcript.

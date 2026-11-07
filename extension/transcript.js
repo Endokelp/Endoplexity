@@ -247,11 +247,18 @@ export function gateSettled(approved) {
  * pasted into a bug report, and it is the only way to tell a run whose tools
  * were missing from one that faked its tool calls as text — so it takes every
  * message received, including the ones the conversation view drops.
+ *
+ * Appended as a node, never `textContent +=`: that re-wrote the whole log on
+ * every message, and a log of fifteen runs (761k characters) cost 118 ms of
+ * the panel's one thread per message. Every lane's tool calls wait on that
+ * thread, so with two runs going they took turns (measured, Phase 21).
  */
 export function raw(line) {
   if (!rawEl) return;
-  rawEl.textContent += `${new Date().toLocaleTimeString()}  ${line}\n`;
-  rawEl.scrollTop = rawEl.scrollHeight;
+  rawEl.append(`${new Date().toLocaleTimeString()}  ${line}\n`);
+  // Reading scrollHeight lays the log out, ~5 ms at that size even folded
+  // away. Followed only while it is open; the panel scrolls it on opening.
+  if (rawEl.closest("details")?.open) rawEl.scrollTop = rawEl.scrollHeight;
 }
 
 export function clear() {
