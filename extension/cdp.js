@@ -174,6 +174,17 @@ async function pickTab(open) {
 }
 
 /**
+ * A run that must not take the tab in front gets one of its own, in the
+ * background and in its group: a scheduled run (scripts/run-task.ts) starts
+ * while you may be working, and is never handed the page you are on.
+ */
+export async function attachOwn() {
+  const opened = await chrome.tabs.create({ url: "about:blank", active: false });
+  await joinGroup(opened.id);
+  return attach(opened.id);
+}
+
+/**
  * The page the agent is about to work on, for the task prompt to name — or null
  * if nothing drivable is open yet.
  *

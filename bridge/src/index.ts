@@ -21,7 +21,7 @@ import {
   pending,
   remove as removeSkill,
 } from "./skills.ts";
-import { setPanel, dropPanel, settle, settleGate, sendPanel } from "./relay.ts";
+import { setPanel, dropPanel, settle, settleGate, sendPanel, panelConnected } from "./relay.ts";
 import { cleanRun, dropRun, inRun, runId } from "./run.ts";
 import { writeMcpConfig, type Run } from "./claude.ts";
 import { writeCursorConfig } from "./cursor.ts";
@@ -116,6 +116,31 @@ const http = createServer(async (req, res) => {
     console.log("reader handoff: the next read is a whole page");
     sendPanel({ type: "forget", run: cleanRun(url.searchParams.get("run")) });
     return void res.writeHead(204).end();
+  }
+
+  // scripts/run-task.ts posts a task here, from the OS scheduler or a terminal.
+  // Same token and Origin rule as /mcp. The panel owns the debugger, so the run
+  // starts there: it opens a tab of its own for it and sends the task back the
+  // way Run does. With no panel open there is nothing to drive, and it says so.
+  if (url.pathname === "/run" && req.method === "POST") {
+    if (!authorizeMcp(req.headers.origin, url.searchParams.get("token"), token)) return void res.writeHead(401).end();
+    let body: { task?: unknown; model?: unknown } = {};
+    try {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk as Buffer);
+      body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}") ?? {};
+    } catch {}
+    const reply = (code: number, payload: Record<string, unknown>) =>
+      void res.writeHead(code, { "content-type": "application/json" }).end(JSON.stringify(payload));
+    if (typeof body.task !== "string" || !body.task.trim()) return reply(400, { error: "no task" });
+    if (body.model !== undefined && (typeof body.model !== "string" || !Object.hasOwn(MODELS, body.model))) {
+      return reply(400, { error: `unknown model ${JSON.stringify(body.model)}` });
+    }
+    if (!panelConnected()) return reply(409, { error: "the side panel is not open: open Chrome and the Endoplexity panel" });
+    const run = `s${randomBytes(4).toString("hex")}`;
+    console.log(`scheduled (${run}): ${body.task}`);
+    sendPanel({ type: "scheduled", run, task: body.task, ...(body.model !== undefined && { model: body.model }) });
+    return reply(202, { run });
   }
 
   const fixture = FIXTURES[url.pathname];

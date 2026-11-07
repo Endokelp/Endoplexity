@@ -10,6 +10,7 @@
     "cursor-login": "node bridge/src/cursor-login.ts",
     "codex-login": "node bridge/src/codex-login.ts",
     "bench": "node scripts/bench.ts",
+    "task": "node scripts/run-task.ts",
     "test": "node --test \"bridge/test/**/*.test.ts\"",
     "laya-setup": "node scripts/laya-setup.mjs",
     "test:laya": "node --test bridge/test/laya.live.ts",

@@ -89,7 +89,7 @@ let sessions = [];
  * keys its state by (bridge/src/run.ts), so every tool call, gate and event
  * names the lane it belongs to.
  *
- *   { id, session, el, ui, cdp, busy, resumable, said, where }
+ *   { id, session, el, ui, cdp, busy, resumable, said, where, scheduled }
  *
  * `session.tab` is the tab the lane drives, kept in storage: after a remount
  * the lane goes back to it instead of taking whatever tab is in front.
@@ -125,7 +125,7 @@ function openLane(session) {
 }
 
 async function makeLane(session) {
-  const lane = { id: session.id, session, busy: false, resumable: false, said: [], where: { page: undefined, state: "idle" } };
+  const lane = { id: session.id, session, busy: false, resumable: false, said: [], where: { page: undefined, state: "idle" }, scheduled: false };
   Object.assign(lane, await makeView(session.id, () => saveLane(lane)));
   lane.cdp = await import(`./cdp.js?lane=${session.id}`);
   // Another lane's tab while that lane is running. An idle lane yields its
@@ -712,6 +712,8 @@ function connect() {
     }
     // claude's reader subagent started or handed back: see forget() in cdp.js.
     if (msg.type === "forget") return void (await laneFor(msg.run)).cdp.forget();
+    // scripts/run-task.ts, through the bridge: a lane of its own, on a tab of its own.
+    if (msg.type === "scheduled") return void runScheduled(msg);
     if (msg.type === "task-event") {
       const lane = await laneFor(msg.run);
       // "done" is the child exiting, however it went — including a Stop.
@@ -786,7 +788,9 @@ async function rebind(lane, name) {
   lane.cdp.nameRun(name);
   try {
     await lane.cdp.detach();
-    await lane.cdp.attach(undefined, { open: false });
+    // A scheduled run never takes the tab you are on: it opens its own.
+    if (lane.scheduled) await lane.cdp.attachOwn();
+    else await lane.cdp.attach(undefined, { open: false });
   } catch (err) {
     // Not fatal: runTool attaches lazily on the first call, so the task can
     // still run — it just loses the page context.
@@ -844,6 +848,23 @@ async function runTask(resume = false) {
 }
 
 /**
+ * A task from scripts/run-task.ts. Its own lane, so it never lands in the
+ * conversation you are having, and its own tab (rebind), so it never drives the
+ * page you are on. The view stays where it is unless the lane on screen is an
+ * empty one.
+ */
+async function runScheduled({ run, task, model }) {
+  const lane = await laneFor(run);
+  lane.scheduled = true;
+  if (!shown.busy && !shown.session.entries.length && shown !== lane) {
+    const empty = shown;
+    showLane(lane);
+    closeLane(empty);
+  }
+  await start(lane, String(task), { model });
+}
+
+/**
  * Send a task for `lane`. Returns whether it went. `pointed` is the @-mentions
  * block, which only a typed task has.
  */
@@ -878,8 +899,10 @@ async function start(lane, prompt, { resume = false, pointed = "", model = model
   // "Apply to THIS job" is unanswerable unless the task says which page this is.
   // Without it the agent asked for a URL instead of acting — it has no way to
   // know a tab is even open. Skipped on a reply: it is already in the
-  // transcript, and the agent has been looking at that page ever since.
-  const page = resume ? null : await lane.cdp.currentPage().catch(() => null);
+  // transcript, and the agent has been looking at that page ever since. A
+  // blank tab a scheduled run opened is no page to name.
+  const at = resume ? null : await lane.cdp.currentPage().catch(() => null);
+  const page = at && /^(https?|file):/.test(at.url) ? at : null;
   // Not skipped on a reply, for a stronger reason than mentions: a file can be
   // attached DURING a conversation — "here's my cover letter too" — and the
   // transcript cannot already hold a key that did not exist when the run
