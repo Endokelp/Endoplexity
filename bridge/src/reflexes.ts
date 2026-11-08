@@ -257,7 +257,13 @@ const ACCEPT = /\b(accept( all)?|agree|allow all)\b/i;
  * one it would have, plus what happened and the page after, so the delta it
  * reads next is against a page it has seen.
  */
-export async function arrived(page: string, alive: () => boolean): Promise<{ text: string; isError?: true } | null> {
+export async function arrived(
+  page: string,
+  alive: () => boolean,
+  // The click goes through the caller's gated path (watch mode, plan lock, audit,
+  // step log), like any model action. Null: it was refused or failed.
+  click: (ref: string) => Promise<string | null>,
+): Promise<{ text: string; isError?: true } | null> {
   const d = await obstacle(page);
   if (!d || !alive()) return null;
   const how = `Obstacle reflex, ${d.backend}, p=${d.p}`;
@@ -283,13 +289,9 @@ export async function arrived(page: string, alive: () => boolean): Promise<{ tex
   const want = cookies === "reject" ? REJECT : ACCEPT;
   const hit = [...labelsOf(page)].find(([, l]) => /^\[(button|link)\]/.test(l) && want.test(l) && !IRREVERSIBLE.test(l));
   if (!hit) return null;
-  try {
-    const after = await callPanel("click", { ref: hit[0] }, hit[1]);
-    remember(after);
-    return { text: `${page}\n\n(${how}: answered a cookie banner with ${hit[1]}, per the user's cookie setting. The page now:)\n${after}` };
-  } catch {
-    return null;
-  }
+  const after = await click(hit[0]);
+  if (after === null) return null;
+  return { text: `${page}\n\n(${how}: answered a cookie banner with ${hit[1]}, per the user's cookie setting. The page now:)\n${after}` };
 }
 
 // ------------------------------------------------------------------ truth

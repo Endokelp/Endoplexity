@@ -14,7 +14,7 @@
  * run goes exactly as it would without reflexes.
  */
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,6 +58,7 @@ export type Settings = {
 const STATES: State[] = ["off", "shadow", "act"];
 const BACKENDS: Backend[] = ["lexical", "laya", "jev"];
 const MODELED = ["pick", "gate", "obstacle"] as const;
+const REFLEXES: unknown[] = [...MODELED, "settle", "see"];
 
 // Shadow on Lexical is the default: it costs no request and no install.
 const DEFAULTS: Settings = {
@@ -328,7 +329,9 @@ export function temper(p: Probs, t: number): Probs {
   return Object.fromEntries(w.map(([k, v]) => [k, v / sum]));
 }
 
-const GRID = [0.25, 0.33, 0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2, 2.5, 3, 4, 5];
+// Only softens: on one-class labels log loss always prefers T < 1, and a
+// calibration step must never make an abstaining answer act.
+const GRID = [1, 1.1, 1.25, 1.5, 2, 2.5, 3, 4, 5];
 // Fewer labelled answers than this and the fit is noise: leave T at 1.
 const MIN_FIT = 20;
 
@@ -344,6 +347,11 @@ export function fit(samples: { p: Probs; truth: string }[]): number {
   return best;
 }
 
+// The model the running sidecar tags rows with. layaModel() flips to "endo" the
+// moment training ends, while the old sidecar keeps serving the base until restart.
+const served = () => layaEndpoint()?.model ?? layaModel();
+const sameModel = (b: string, a: { model?: string }) => b !== "laya" || (a.model ?? "multilingual") === served();
+
 /**
  * One temperature per (backend, reflex), fitted on the log.
  * ponytail: pooled over option counts, where the spec asks for one per count.
@@ -353,7 +361,7 @@ export function fit(samples: { p: Probs; truth: string }[]): number {
 export function temperature(backend: string, reflex: Reflex): number {
   // A fine-tuned Laya is a different model: its temperature is fitted on its
   // own answers only. Rows from before P19 carry no tag and came from the base.
-  const model = backend === "laya" ? layaModel() : undefined;
+  const model = backend === "laya" ? served() : undefined;
   return fit(
     rows.flatMap((r) => {
       const a = r.reflex === reflex && r.truth !== undefined ? r.answers[backend] : undefined;
@@ -399,7 +407,8 @@ function readLog(): Row[] {
       continue;
     }
     if (typeof x?.id !== "string") continue;
-    if (x.reflex) byId.set(x.id, x);
+    // An unknown reflex name would throw in stats() and stop startup.
+    if (REFLEXES.includes(x.reflex)) byId.set(x.id, x);
     else if (byId.has(x.id) && typeof x.truth === "string") Object.assign(byId.get(x.id)!, { truth: x.truth, by: x.by });
   }
   return [...byId.values()];
@@ -408,14 +417,20 @@ function readLog(): Row[] {
 function append(entry: object): void {
   if (!settings) return;
   const line = JSON.stringify(entry) + "\n";
-  appendFileSync(logPath(), line);
-  bytes += Buffer.byteLength(line);
-  if (bytes <= LOG_CAP) return;
-  // Over the cap: keep the newest half, merged, and start the file again.
-  rows = rows.slice(Math.floor(rows.length / 2));
-  const kept = rows.map((r) => JSON.stringify(r) + "\n").join("");
-  writeFileSync(logPath(), kept);
-  bytes = Buffer.byteLength(kept);
+  // A failed log write is dropped: it must never fail the click that caused it.
+  try {
+    appendFileSync(logPath(), line);
+    bytes += Buffer.byteLength(line);
+    if (bytes <= LOG_CAP) return;
+    // Over the cap: keep the newest half, merged, and start the file again.
+    // Written beside it and renamed, so a crash cannot leave a truncated log.
+    const kept = rows.slice(Math.floor(rows.length / 2));
+    const text = kept.map((r) => JSON.stringify(r) + "\n").join("");
+    writeFileSync(logPath() + ".tmp", text);
+    renameSync(logPath() + ".tmp", logPath());
+    rows = kept;
+    bytes = Buffer.byteLength(text);
+  } catch {}
 }
 
 export function newRow(reflex: Reflex, state: string, fields: Partial<Row> = {}): Row {
@@ -455,6 +470,8 @@ export function clearLog(): void {
   written.clear();
   bytes = 0;
   if (home && existsSync(logPath())) unlinkSync(logPath());
+  // The evidence Act stood on is gone, so Act is too.
+  if (settings) settings = sanitize(settings);
 }
 
 // ------------------------------------------------------------------ status
@@ -467,7 +484,7 @@ export function stats(): Record<Reflex, Record<string, Tally>> {
   for (const r of rows) {
     if (r.truth === undefined) continue;
     for (const [b, a] of Object.entries(r.answers)) {
-      if (a.choice === null) continue;
+      if (a.choice === null || !sameModel(b, a)) continue;
       const t = (out[r.reflex][b] ??= { agreed: 0, of: 0 });
       t.of++;
       if (a.choice === r.truth) t.agreed++;

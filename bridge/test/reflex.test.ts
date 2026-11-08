@@ -1,18 +1,22 @@
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type Server } from "node:http";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   ask,
   clearLog,
+  current,
   decide,
   fit,
   initReflexes,
   labelled,
   mark,
   needsLaya,
+  newRow,
+  record,
+  temperature,
   panelState,
   saveSettings,
   stats,
@@ -185,7 +189,7 @@ async function driveEveryHook() {
   remember(page);
   await pick("submit button", hits);
   await gate("@f0e3", '[button] "Submit application"', false);
-  await arrived(page, () => true);
+  await arrived(page, () => true, async () => null);
   await new Promise((r) => setTimeout(r, 100));
 }
 
@@ -255,7 +259,7 @@ test("a ref the Pick row never offered leaves it open, and drop() discards it", 
 test("Obstacle's truth comes from the next control acted on", async () => {
   saveSettings({});
   remember('@f0e7 [button] "Accept all cookies"\n@f0e8 [link] "Jobs"');
-  await arrived('@f0e7 [button] "Accept all cookies"\n[heading] "We use cookies"', () => true);
+  await arrived('@f0e7 [button] "Accept all cookies"\n[heading] "We use cookies"', () => true, async () => null);
   acted("@f0e7");
   await until(() => stats().obstacle.lexical?.of === 1, "counted");
   assert.deepEqual(stats().obstacle.lexical, { agreed: 1, of: 1 });
@@ -447,4 +451,88 @@ test("a key Jev refuses (no credit) says so in the panel, and a later answer cle
   reply = answering((k) => Object.fromEntries(k.map((x) => [x, 1])));
   assert.ok(await ask(provider(), "s", Q));
   assert.equal(panelState().backends.jev.note, "key saved");
+});
+
+// ------------------------------------------------------- review fixes
+
+test("Obstacle's cookie click goes through the caller's gated click, and a refusal abstains", async () => {
+  for (let i = 0; i < 60; i++) record(newRow("obstacle", "s", { question: Q.q, answers: { jev: { choice: "cookie" } }, truth: "cookie" }));
+  reply = answering((k) => Object.fromEntries(k.map((x) => [x, x === "cookie" ? 0.97 : 0.01])));
+  saveSettings({ cookies: "reject", obstacle: { state: "act", backend: "jev" }, jevAccepted: true });
+  const banner = '@f0e1 [button] "Reject all cookies"\n[heading] "We use cookies"';
+  remember(banner);
+  const clicked: string[] = [];
+  await withPanel({}, async () => {
+    const out = await arrived(banner, () => true, async (ref) => (clicked.push(ref), "NEXT PAGE"));
+    assert.deepEqual(clicked, ["@f0e1"]);
+    assert.match(out?.text ?? "", /NEXT PAGE/);
+    assert.equal(await arrived(banner, () => true, async () => null), null);
+  });
+});
+
+test("calibration only softens: one-class labels never sharpen an abstaining answer", () => {
+  const samples = Array.from({ length: 30 }, () => ({ p: { a: 0.55, b: 0.3 }, truth: "a" }));
+  assert.equal(fit(samples), 1);
+  assert.equal(decide({ a: 0.55, b: 0.3 }, fit(samples)), null);
+});
+
+test("clearing the log turns Act back to Shadow, and Laya rows count only for the served model", () => {
+  const row = (model: string) =>
+    record(newRow("obstacle", "s", { question: Q.q, answers: { laya: { choice: "a", p: { a: 0.9, b: 0.1 }, model } }, truth: "a" }));
+  const was = process.env.ENDO_HOME;
+  process.env.ENDO_HOME = mkdtempSync(join(tmpdir(), "endo-laya-"));
+  try {
+    mkdirSync(trainedDir(), { recursive: true });
+    writeFileSync(join(trainedDir(), "rl_agent_config.json"), "{}"); // served model is now "endo"
+    saveSettings({});
+    for (let i = 0; i < 60; i++) row("multilingual");
+    assert.equal(stats().obstacle.laya, undefined, "rows from the other model are not evidence");
+    for (let i = 0; i < 60; i++) row("endo");
+    assert.equal(stats().obstacle.laya?.of, 60);
+    // lexical earns Act on the same rows; clearing must revoke it at once.
+    for (let i = 0; i < 60; i++) record(newRow("obstacle", "s", { question: Q.q, answers: { lexical: { choice: "a" } }, truth: "a" }));
+    saveSettings({ obstacle: { state: "act", backend: "lexical" } });
+    assert.equal(current()?.obstacle.state, "act");
+    clearLog();
+    assert.equal(current()?.obstacle.state, "shadow");
+  } finally {
+    if (was === undefined) delete process.env.ENDO_HOME;
+    else process.env.ENDO_HOME = was;
+  }
+});
+
+test("temperature fits on the served model's rows only", () => {
+  const was = process.env.ENDO_HOME;
+  process.env.ENDO_HOME = mkdtempSync(join(tmpdir(), "endo-laya-"));
+  try {
+    saveSettings({});
+    const p = { a: 0.7, b: 0.3 };
+    // Served model (untagged rows are the base) is always right: T stays 1. The other model's wrong rows would soften it.
+    for (let i = 0; i < 30; i++) record(newRow("obstacle", "s", { answers: { laya: { choice: "a", p } }, truth: "a" }));
+    for (let i = 0; i < 30; i++) record(newRow("obstacle", "s", { answers: { laya: { choice: "a", p, model: "endo" } }, truth: "b" }));
+    assert.equal(temperature("laya", "obstacle"), 1);
+  } finally {
+    if (was === undefined) delete process.env.ENDO_HOME;
+    else process.env.ENDO_HOME = was;
+  }
+});
+
+test("a log write that fails never throws out of the caller", () => {
+  saveSettings({});
+  const path = join(home, "reflex-log.jsonl");
+  rmSync(path, { force: true });
+  mkdirSync(path); // appending to a directory fails
+  try {
+    assert.doesNotThrow(() => settled({ settledAt: 1, changedAfter: false, waited: 300 }));
+  } finally {
+    rmSync(path, { recursive: true });
+  }
+});
+
+test("a foreign reflex name in the log is dropped, not fatal at startup", () => {
+  const good = JSON.stringify(newRow("settle", "s", { answers: { cdp: { choice: "a" } }, truth: "a" }));
+  const bad = JSON.stringify({ id: "rx", at: 1, reflex: "toString", state: "s", answers: { x: { choice: "a" } }, truth: "a" });
+  writeFileSync(join(home, "reflex-log.jsonl"), `${bad}\n${good}\n`);
+  assert.doesNotThrow(() => initReflexes(home));
+  assert.equal(panelState().log.rows, 1);
 });
