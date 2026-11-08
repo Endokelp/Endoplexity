@@ -26,3 +26,10 @@ dist/
 demoVid.mp4
 *.mp4
 !docs/demo.mp4
+
+# Phase 23's raw evidence (streams, end pages, screenshots, judge packets)
+# ships as a release asset; the summaries, verdicts and results are committed.
+bench/runs/**/*.final.txt
+bench/runs/**/*.jpg
+bench/runs/smoke/
+bench/judge/packets/

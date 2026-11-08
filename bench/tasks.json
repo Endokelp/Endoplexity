@@ -1,0 +1,626 @@
+{
+  "source": {
+    "tasks": "https://raw.githubusercontent.com/microsoft/fara/a675d6d61c41c47ae87bacefeab22caad18e3e84/webeval/data/om2w/Online_Mind2Web_06042025.json",
+    "labels": "https://raw.githubusercontent.com/OSU-NLP-Group/Online-Mind2Web/1a8db93168d5d7870402b7f453160e1c557153c8/data/evaluation_results/online_mind2web_evaluation_results",
+    "rule": "see bench/freeze.mjs"
+  },
+  "tasks": [
+    {
+      "id": "a11ecdff735b51372d536c866011af6f",
+      "level": "easy",
+      "website": "https://www.coursera.org/",
+      "task": "Explore courses related to Psychology.",
+      "reference_length": 4,
+      "key_points": [
+        "Explore courses",
+        "Related to Psychology"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "2207bb4f21786690cfed20b37253fb8b",
+      "level": "easy",
+      "website": "https://www.theweathernetwork.com/",
+      "task": "Check the current wind speed in Calgary, Alberta.",
+      "reference_length": 2,
+      "key_points": [
+        "Check the current wind speed",
+        "Location: Calgary, Alberta"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 1,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "62f1626ce249c31098854f8b38bdd6cf",
+      "level": "medium",
+      "website": "https://www.gamestop.com/",
+      "task": "Find Playstation 5 digital edition on gamestop.",
+      "reference_length": 6,
+      "key_points": [
+        "Find “Playstation 5 digital edition”",
+        "On GameStop"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 1,
+        "Browser_Use": 1,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "b1ce968a361e1088ce8d2ade6c2c9af0",
+      "level": "medium",
+      "website": "https://www.petfinder.com/",
+      "task": "Find young cats in Seattle and show off the newest additions.",
+      "reference_length": 6,
+      "key_points": [
+        "Filter by age: young",
+        "Filter by location: Seattle",
+        "Filter by newest additions",
+        "Show off results"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 1,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "a13e4231a3d6a7000c622c56448d97ba",
+      "level": "hard",
+      "website": "https://www.airbnb.com/",
+      "task": "Find an Airbnb in Cleveland for three nights. The check-in date is the day after tomorrow. We have 2 adults, 2 kids, and 1 pet. The budget is $100 to $300 per night. Essential amenities include free parking, a washer, and a gym.",
+      "reference_length": 19,
+      "key_points": [
+        "Task: Find an Airbnb",
+        "Location: Cleveland",
+        "Stay duration: 3 nights",
+        "Check‑in date: the day after tomorrow",
+        "Guests: 2 adults, 2 kids, 1 pet",
+        "Budget per night: $100–$300",
+        "Essential amenities: free parking, washer, gym"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "16200f51d63f0a47a58fa17acd49e368",
+      "level": "easy",
+      "website": "https://cookpad.com/",
+      "task": "Find a recipe that includes eggplant and mushrooms.",
+      "reference_length": 3,
+      "key_points": [
+        "Find a recipe",
+        "Includes eggplant",
+        "Includes mushrooms"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 1,
+        "Browser_Use": 1,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "aa4b5cb7114fcc138ade82b4b9716d24",
+      "level": "medium",
+      "website": "https://www.ign.com/",
+      "task": "Find an editor's choice review with a score of 10 in the boardgame category on ign.",
+      "reference_length": 8,
+      "key_points": [
+        "Find an editor’s choice review",
+        "Score of 10",
+        "Boardgame category",
+        "On IGN"
+      ],
+      "human_labels": {
+        "Operator": 2,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "62c8d970b3d13891f355911e5a8f4030",
+      "level": "medium",
+      "website": "https://store.steampowered.com/",
+      "task": "Find the top game listed in the Steam Deck's top-played list over the past year. Then, browse reviews for that game from players who have played over 100 hours and primarily use a Steam Deck.",
+      "reference_length": 9,
+      "key_points": [
+        "Sort by highest-played game in Steam Deck’s top-played list over the past year",
+        "Identify the top-listed game",
+        "Browse reviews for that game",
+        "Filter reviews by players with over 100 hours of playtime",
+        "Filter reviews by players who primarily use a Steam Deck"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "c7c07ec10c668625a21ba64165d719bb",
+      "level": "medium",
+      "website": "https://www.verizon.com/",
+      "task": "Find the total monthly price for four prepaid unlimited lines without autopay discounts.",
+      "reference_length": 8,
+      "key_points": [
+        "Total monthly price",
+        "Four lines",
+        "Prepaid unlimited lines",
+        "Without autopay discounts"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "9d09bc948462db032bac98968b11b008",
+      "level": "medium",
+      "website": "https://www.stubhub.com/",
+      "task": "Find NHL events occurring in Boston.",
+      "reference_length": 7,
+      "key_points": [
+        "Identify NHL events",
+        "Filter for events occurring in Boston"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "26784156ae9859a0dd6c5920eb106f91",
+      "level": "medium",
+      "website": "https://www.apartments.com/",
+      "task": "calculate and search rent for a $6000 monthly income with 30% rent budget near 90012 area.",
+      "reference_length": 8,
+      "key_points": [
+        "Monthly income of $6000",
+        "Rent budget set at 30% of monthly income",
+        "Calculate rent based on this budget",
+        "Search rent listings near the 90012 area"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 1,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "d392e154c1c6ffbb26e2331c3afafc67",
+      "level": "medium",
+      "website": "https://www.bestbuy.com/",
+      "task": "Add a $100 Best Buy gift card for a birthday to my cart.",
+      "reference_length": 6,
+      "key_points": [
+        "Add to cart",
+        "$100 amount",
+        "Best Buy gift card",
+        "Birthday occasion"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 1,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "afcebfed28bea091d58f49ea6cb8194b",
+      "level": "hard",
+      "website": "https://www.cvs.com/",
+      "task": "Find the most reviewed gluten-free multivitamins from CVS Health Brand under $15.",
+      "reference_length": 12,
+      "key_points": [
+        "Filter by brand: CVS Health Brand",
+        "Filter by product type: multivitamins",
+        "Filter by gluten-free",
+        "Filter by price under $15",
+        "Filter by highest number of reviews"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "f2be37a9a60fbc25b6b11cf622d17352",
+      "level": "hard",
+      "website": "https://www.akc.org/",
+      "task": "Find obedience trials in state of New York during the month of May.",
+      "reference_length": 14,
+      "key_points": [
+        "Find obedience trials",
+        "In state of New York",
+        "During the month of May"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "3f312ae3efc3c3e90ababe050dd4e7ae",
+      "level": "easy",
+      "website": "https://www.nfl.com/",
+      "task": "Find the current NFL standings for the AFC East division on NFL.com and go to the page on which team is in first place.",
+      "reference_length": 4,
+      "key_points": [
+        "Go to nfl.com",
+        "Find the current NFL standings for the AFC East division",
+        "Go to the page of the team that is in first place"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "9b5dfe54a1c14c5c6336bae7374c3bb5",
+      "level": "medium",
+      "website": "https://www.ups.com/",
+      "task": "Find a UPS Access Point near SPRING, TX and services provided by them.",
+      "reference_length": 8,
+      "key_points": [
+        "Find a UPS Access Point.",
+        "Location must be near SPRING, TX.",
+        "Identify services provided by the UPS Access Point."
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "627f7a18d85f29a687234f1ade4585c2",
+      "level": "easy",
+      "website": "https://www.nba.com/",
+      "task": "Find the current league leader in total blocked shots.",
+      "reference_length": 5,
+      "key_points": [
+        "Current",
+        "League leader",
+        "Total blocked shots"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 1,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "8fdec8eeffd3491e6526cc78c028120b",
+      "level": "hard",
+      "website": "https://www.carmax.com/",
+      "task": "See Nissan and Honda cars for sale near Kentwood, MI 49512 on CarMax.",
+      "reference_length": 12,
+      "key_points": [
+        "Filter by Nissan cars",
+        "Filter by Honda cars",
+        "Specify location near Kentwood, MI 49512",
+        "Use CarMax platform"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "07ec4a12cba8090e2dc524d558ac7675",
+      "level": "medium",
+      "website": "https://www.drugs.com/",
+      "task": "Check drug interaction for melatonin and Folate Forte.",
+      "reference_length": 6,
+      "key_points": [
+        "Check drug interaction",
+        "Melatonin",
+        "Folate Forte"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 1,
+        "Browser_Use": 1,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "bb518416a786fdb9b9bbf0c78515595e",
+      "level": "easy",
+      "website": "https://www.osu.edu/",
+      "task": "Browse the class schedule of graduate-level computer science courses.",
+      "reference_length": 4,
+      "key_points": [
+        "Browse the class schedule",
+        "Graduate-level",
+        "Computer science courses"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "b6d10e9bd19b4009a02dea0e98f4e1ae",
+      "level": "easy",
+      "website": "https://www.foxsports.com/",
+      "task": "Check the current standings for MLS on Fox Sports.",
+      "reference_length": 4,
+      "key_points": [
+        "Check the current standings",
+        "League: MLS",
+        "Source: FoxSports"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 1,
+        "Browser_Use": 1,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "bfa2de159be6978acf2702be31a2eeeb",
+      "level": "hard",
+      "website": "https://www.united.com/",
+      "task": "Show me the options for a roundtrip leaving from Las Vegas on flexible dates on the interactive map on united.",
+      "reference_length": 12,
+      "key_points": [
+        "Show options",
+        "Roundtrip",
+        "Leaving from Las Vegas",
+        "Flexible dates",
+        "Interactive map",
+        "United"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "27fa3ac20745d3d35e89fae157f63069",
+      "level": "hard",
+      "website": "https://www.stanford.edu/",
+      "task": "Browse the class schedule of graduate-level chemistry courses on Monday afternoons in the winter of 2023.",
+      "reference_length": 11,
+      "key_points": [
+        "Browse the class schedule",
+        "Graduate-level",
+        "Chemistry courses",
+        "Monday afternoons",
+        "Winter 2023"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "828c2d98616a9478d5864d847d5a1b28",
+      "level": "easy",
+      "website": "https://www.justice.gov/",
+      "task": "Browse the list of Civil Division forms.",
+      "reference_length": 4,
+      "key_points": [
+        "Browse list of Civil Division forms"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "1b867afecf072cb877ebfa4069263746",
+      "level": "hard",
+      "website": "https://www.americashealthrankings.org/",
+      "task": "Display the figure comparing unemployment trends among women in Illinois and Michigan.",
+      "reference_length": 15,
+      "key_points": [
+        "Display the figure",
+        "Compare unemployment trends",
+        "Among women",
+        "In Illinois and Michigan"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "71f8de1834599fba443f40dbbfab8edd",
+      "level": "hard",
+      "website": "https://arxiv.org/",
+      "task": "Search for papers related to reinforcement learning under the topics of computer science and mathematics on arxiv, with recent submission dates between September 2024 and January 2025.",
+      "reference_length": 11,
+      "key_points": [
+        "Search for papers related to reinforcement learning",
+        "Source: arxiv",
+        "Topics: computer science and mathematics",
+        "Submission dates between September 2024 and January 2025"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 0,
+        "Browser_Use": 1,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "853afd530c72f4b00ffc32ae854efaf8",
+      "level": "easy",
+      "website": "https://www.accuweather.com/",
+      "task": "Show me the wind flow map for Belo Horizonte.",
+      "reference_length": 5,
+      "key_points": [
+        "Show the wind flow map",
+        "Target location: Belo Horizonte"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    },
+    {
+      "id": "33bd2cdcea4fcc42a09a8a1e4e5841c6",
+      "level": "hard",
+      "website": "https://www.kfc.com/",
+      "task": "Add a 5-piece Tenders Combo to my bag with Sweet Corn as the side, Sweet Tea as the drink, and both Honey BBQ and Honey Mustard sauces. Select the store closest to Zip code 10001 for pick-up tomorrow at 12:00 PM.",
+      "reference_length": 23,
+      "key_points": [
+        "Add a 5-piece Tenders Combo to the bag",
+        "Select Sweet Corn as the side",
+        "Select Sweet Tea as the drink",
+        "Add Honey BBQ and Honey Mustard sauces",
+        "Sort by closest store to Zip code 10001",
+        "Schedule pick-up for tomorrow at 12:00 PM"
+      ],
+      "human_labels": {
+        "Operator": 0,
+        "Agent-E": 0,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 0,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "f05e87c5b92d9869e08806103c1c15a1",
+      "level": "hard",
+      "website": "https://www.ycombinator.com/",
+      "task": "Find all startup companies from the 2022 and 2023 Y Combinator batches that are based in France and currently have job openings.",
+      "reference_length": 12,
+      "key_points": [
+        "Target startup companies.",
+        "From the 2022 and 2023 Y Combinator batches.",
+        "Based in France.",
+        "Currently have job openings."
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 1,
+        "Browser_Use": 0,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 0,
+        "SeeAct": 0
+      }
+    },
+    {
+      "id": "23204728192da9f73197a613d9681c18",
+      "level": "easy",
+      "website": "https://www.mayoclinic.org/",
+      "task": "What are the Symptoms and causes of fever?",
+      "reference_length": 3,
+      "key_points": [
+        "Symptoms of fever",
+        "Causes of fever"
+      ],
+      "human_labels": {
+        "Operator": 1,
+        "Agent-E": 1,
+        "Browser_Use": 1,
+        "Claude_Computer_Use_3.5": 1,
+        "Claude_Computer_Use_3.7": 1,
+        "SeeAct": 1
+      }
+    }
+  ]
+}
