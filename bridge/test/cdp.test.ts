@@ -36,6 +36,9 @@ let newTabId = 2;
 /** Set per test: the AX tree getFullAXTree hands back. Empty unless a test cares. */
 let axNodes: () => unknown[] = () => [];
 
+/** Every chrome.tabs.create / update, for the tests that care whether a tab was brought to the front. */
+const tabOps: unknown[][] = [];
+
 /** Tabs another attachment holds: "ours" a torn-down panel's, "devtools" not ours to release. */
 const held = new Map<number, "ours" | "devtools">();
 
@@ -63,8 +66,8 @@ const held = new Map<number, "ours" | "devtools">();
   tabs: {
     get: async () => ({ id: 1, url: "https://example.test/", title: "t" }),
     query: async () => openTabs,
-    create: async () => ({ id: (created++, newTabId) }),
-    update: async () => {},
+    create: async (o: unknown) => (tabOps.push(["create", o]), { id: (created++, newTabId) }),
+    update: async (...a: unknown[]) => void tabOps.push(["update", ...a]),
     group: async (options: { groupId?: number; tabIds: number[] }) => {
       grouped.push(options);
       if (options.groupId !== undefined) return options.groupId;
@@ -441,7 +444,7 @@ test("a point ref dies with the page", async () => {
   await cdp.detach();
 });
 
-test("labelOf a point ref names what is under it, and degrades to the query alone", async () => {
+test("labelOf a point ref names what is under it, and throws rather than fall back to the query", async () => {
   fail = () => null;
   seeReplies({
     "DOM.getNodeForLocation": { backendNodeId: 7 },
@@ -451,8 +454,91 @@ test("labelOf a point ref names what is under it, and degrades to the query alon
   const ref = await cdp.point(10, 10, "the trash icon");
   assert.equal(await cdp.labelOf(ref), '[point] "the trash icon" over [button] "Delete"');
   fail = (_s, method) => (method === "DOM.getNodeForLocation" ? "no node" : null);
-  assert.equal(await cdp.labelOf(ref), '[point] "the trash icon"');
+  await assert.rejects(cdp.labelOf(ref), /no node/, "the model's own words are never the label");
   await cdp.detach();
+});
+
+test("labelOf a point over an icon inside a button reads the button's name, and an unnamed chain throws", async () => {
+  fail = () => null;
+  const svg = { nodeId: "2", parentId: "1", backendDOMNodeId: 7, role: { value: "image" } };
+  const tree = (name?: string) => ({
+    "DOM.getNodeForLocation": { backendNodeId: 7 },
+    "Accessibility.getPartialAXTree": {
+      nodes: [{ nodeId: "1", backendDOMNodeId: 6, role: { value: "button" }, ...(name ? { name: { value: name } } : {}) }, svg],
+    },
+  });
+  seeReplies(tree("Place order"));
+  await cdp.attach(1);
+  const ref = await cdp.point(10, 10, "the cart icon");
+  assert.equal(await cdp.labelOf(ref), '[point] "the cart icon" over [image] in [button] "Place order"');
+  seeReplies(tree());
+  await assert.rejects(cdp.labelOf(ref), /nothing readable/);
+  await cdp.detach();
+});
+
+test("type sends a line break as text, never as an Enter key event", async () => {
+  fail = () => null;
+  reply = () => undefined;
+  axNodes = () => axPage("Go").nodes;
+  await cdp.attach(1);
+  await cdp.snapshot();
+  calls.length = 0;
+  await cdp.type("@f0e11", "a\r\nb\rc");
+  const keys = calls.filter((c) => c.method === "Input.dispatchKeyEvent").map((c) => (c.params as { text: string }).text);
+  assert.ok(keys.every((t) => !/[\r\n]/.test(t)), "no key event carries a line break");
+  assert.equal(keys.length, 6, "a, b, c: down and up");
+  const ins = calls.filter((c) => c.method === "Input.insertText").map((c) => (c.params as { text: string }).text);
+  assert.deepEqual(ins, ["\n", "\n"], "\\r\\n is one break, \\r another");
+  await cdp.detach();
+});
+
+test("upload's result never carries the path it was given", async () => {
+  fail = () => null;
+  reply = (m) =>
+    m === "DOM.getDocument" ? { root: { nodeId: 1 } }
+    : m === "DOM.querySelectorAll" ? { nodeIds: [5] }
+    : m === "DOM.getAttributes" ? { attributes: ["name", "resume"] }
+    : undefined;
+  axNodes = () => axPage("Go").nodes;
+  await cdp.attach(1);
+  const out = await cdp.upload("/home/me/secret/cv.pdf", undefined, { quiet: true });
+  assert.match(out, /^set the file on file input "resume"/);
+  assert.ok(!out.includes("secret"), "no path reaches the model");
+  await cdp.detach();
+  reply = () => undefined;
+});
+
+test("a background run opens its use_tab tab behind the one in front and never raises one", async () => {
+  fail = () => null;
+  reply = () => undefined;
+  axNodes = () => axPage("Go").nodes;
+  await cdp.attach(1);
+  cdp.setBackground(true);
+  tabOps.length = 0;
+  await cdp.useTab(undefined, "https://other.test/", { quiet: true });
+  assert.deepEqual(tabOps.find((o) => o[0] === "create")?.[1], { url: "https://other.test/", active: false });
+  assert.ok(!tabOps.some((o) => o[0] === "update" && (o[2] as { active?: boolean })?.active), "no raise");
+  cdp.setBackground(false);
+  await cdp.detach();
+});
+
+test("with a frame attached, Act settle keeps at least the old 300 ms wait", async () => {
+  fail = () => null;
+  reply = (m) => (m === "Runtime.evaluate" ? { result: { value: 0 } } : undefined);
+  axNodes = () => axPage("Go").nodes;
+  cdp.setSettle("act");
+  const timed = async () => {
+    const t0 = Date.now();
+    await cdp.key("Escape", { quiet: true });
+    return Date.now() - t0;
+  };
+  await cdp.attach(1);
+  assert.ok((await timed()) < 250, "a lone main frame is quiet in about 100 ms");
+  attachFrame("fs1");
+  assert.ok((await timed()) >= 290, "a frame's own changes are invisible, so wait the fixed time");
+  await cdp.detach();
+  cdp.setSettle("off");
+  reply = () => undefined;
 });
 
 test("point() refuses a position outside the viewport, and a non-number", async () => {

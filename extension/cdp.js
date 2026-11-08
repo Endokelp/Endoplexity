@@ -420,6 +420,10 @@ export async function tabs() {
  * switching is detach-then-attach — which throws away every ref, deliberately:
  * they belong to the old tab's renderer and would resolve to nothing here.
  */
+// A scheduled run must not pull its tabs to the front (scripts/run-task.ts).
+let background = false;
+export const setBackground = (on) => void (background = !!on);
+
 export async function useTab(id, url, options) {
   requireAttached();
   const undrivable = (where) =>
@@ -435,7 +439,7 @@ export async function useTab(id, url, options) {
   // there rejects every new tab as undrivable.
   if (url && !DRIVABLE.test(url)) throw undrivable(url);
   if (!url && taken(id)) throw busyTab(id);
-  const target = url ? (await chrome.tabs.create({ url, active: true })).id : id;
+  const target = url ? (await chrome.tabs.create({ url, active: !background })).id : id;
   if (target == null) throw new Error("use_tab needs an id from tabs(), or a url to open");
   // Only a tab we just opened — see the rules on joinGroup().
   if (url) await joinGroup(target);
@@ -447,7 +451,7 @@ export async function useTab(id, url, options) {
   if (target !== tabId) {
     await detach();
     await attach(target);
-    await chrome.tabs.update(target, { active: true });
+    if (!background) await chrome.tabs.update(target, { active: true });
   }
   // A freshly created tab is usually still loading; settle() waits on exactly
   // that and needs no separate path.
@@ -607,6 +611,9 @@ async function actSettle() {
       if (now - t0 >= 1000) break;
       await sleep(25);
     }
+    // The observer and network tracking watch the main frame only, so with a
+    // frame attached an action inside it looks quiet at once: keep the old wait.
+    if (current().length > 1) await sleep(Math.max(0, 300 - (Date.now() - t0)));
     await evalMain(COLLECT);
   } catch {
     // Context gone or evaluate refused: the rest of the fixed wait, as if off.
@@ -836,19 +843,28 @@ export async function point(x, y, query) {
   return ref;
 }
 
-/** What is really under a point, for the gate. Never throws for a live point ref. */
+const ACTIONABLE = /^(button|link|menuitem\w*|checkbox|radio|switch|tab|option|combobox|textbox|searchbox)$/;
+
+/**
+ * What is really under a point, for the gate: the node there plus its ancestors
+ * up to the nearest actionable one, because a click on the <svg> inside
+ * <button aria-label="Place order"> lands on the button. Throws on any failure or
+ * when nothing in the chain has a name: the bridge reads a throw as "ask the
+ * human", and the model's own query text is never what the gate decides on.
+ */
 async function pointLabel({ point: { x, y }, query }) {
-  const head = `[point] "${query}"`;
-  try {
-    await send(MAIN, "DOM.getDocument", { depth: 0 });
-    const { backendNodeId } = await send(MAIN, "DOM.getNodeForLocation", { x: Math.floor(x), y: Math.floor(y), includeUserAgentShadowDOM: true });
-    await send(MAIN, "Accessibility.enable");
-    const { nodes } = await send(MAIN, "Accessibility.getPartialAXTree", { backendNodeId, fetchRelatives: false });
-    const node = nodes.find((n) => n.backendDOMNodeId === backendNodeId) ?? nodes[0];
-    return `${head} over ${lineLabel(node)}`;
-  } catch {
-    return head;
+  await send(MAIN, "DOM.getDocument", { depth: 0 });
+  const { backendNodeId } = await send(MAIN, "DOM.getNodeForLocation", { x: Math.floor(x), y: Math.floor(y), includeUserAgentShadowDOM: true });
+  await send(MAIN, "Accessibility.enable");
+  const { nodes } = await send(MAIN, "Accessibility.getPartialAXTree", { backendNodeId, fetchRelatives: true });
+  const byId = new Map(nodes.map((n) => [n.nodeId, n]));
+  const chain = [];
+  for (let n = nodes.find((n) => n.backendDOMNodeId === backendNodeId); n && chain.length < 20; n = byId.get(n.parentId)) {
+    chain.push(n);
+    if (ACTIONABLE.test(n.role?.value ?? "")) break;
   }
+  if (!chain.some((n) => n.name?.value)) throw new Error("nothing readable under that point");
+  return `[point] "${query}" over ${chain.map(lineLabel).join(" in ")}`;
 }
 
 const noPoint = (ref) => {
@@ -970,7 +986,14 @@ export async function type(ref, text) {
   await send(sessionId, "DOM.focus", { backendNodeId });
   // ponytail: per-char, no batching. Design doc's ceiling is ~200 chars before
   // Input.insertText is worth it; nothing typed into a form field is near that.
-  for (const ch of text) {
+  // A line break as a key event is Enter, which submits a form with no gate
+  // (type is never gated). insertText puts a newline in a <textarea> and an
+  // <input> drops it, so nothing submits. "\r\n" counts as one break.
+  for (const ch of text.replace(/\r\n|\r/g, "\n")) {
+    if (ch === "\n") {
+      await send(MAIN, "Input.insertText", { text: "\n" });
+      continue;
+    }
     // Alphanumerics carry their US-layout key code, which is what handlers that
     // sniff event.keyCode expect. Everything else goes through as text only —
     // a full layout table is not worth 200 lines here.
@@ -1065,7 +1088,8 @@ export async function upload(path, match, options) {
   // Measured 2026-08-04. Without this line the agent reads its own success as a
   // failure and retries — the trap the whole "actions return the page" design
   // already walked into once.
-  let prefix = `set "${path}" on file input "${chosen.label}" — succeeded; the page below may still show the old state for a moment`;
+  // No path in the text: the model never sees one.
+  let prefix = `set the file on file input "${chosen.label}" — succeeded; the page below may still show the old state for a moment`;
   if (rest.length) {
     prefix += ` (first of ${pool.length} — others: ${rest.map((h) => h.label).join(", ")}; pass match to pick one)`;
   }

@@ -125,12 +125,14 @@ function openLane(session) {
 }
 
 async function makeLane(session) {
-  const lane = { id: session.id, session, busy: false, resumable: false, said: [], where: { page: undefined, state: "idle" }, scheduled: false };
+  const lane = { id: session.id, session, busy: false, resumable: false, said: [], where: { page: undefined, state: "idle" }, scheduled: session.scheduled === true };
   Object.assign(lane, await makeView(session.id, () => saveLane(lane)));
   lane.cdp = await import(`./cdp.js?lane=${session.id}`);
   // Another lane's tab while that lane is running. An idle lane yields its
   // tab: a finished run holds nothing worth more than the task you start now.
-  lane.cdp.setTaken((tab) => lanes.some((other) => other !== lane && other.busy && other.session.tab === tab));
+  // session.tab only follows after a whole tool call, so the live attachment counts too.
+  lane.cdp.setTaken((tab) => lanes.some((other) => other !== lane && other.busy && (other.session.tab === tab || other.cdp?.state().tabId === tab)));
+  lane.cdp.setBackground(lane.scheduled);
   lane.cdp.setSettle(reflexStates.settle);
   lane.cdp.setSee(reflexStates.see);
   // Settle's shadow measurements go back as log rows. A measurement made while
@@ -239,7 +241,7 @@ function showLane(lane) {
   lane.el.classList.add("shown");
   renderWhere();
   syncButtons();
-  drawGate();
+  drawGate(true);
   drawLanes();
   drawHistory();
   historyOpen.open = false;
@@ -454,14 +456,38 @@ const gateText = ({ action, second }) => (second ? `${action} · ${secondText(se
 
 async function showGate(msg) {
   const lane = await laneFor(msg.run);
-  gates.push({ ...msg, lane });
+  const g = { ...msg, lane };
+  gates.push(g);
   lane.ui.gateRow(gateText(msg));
+  // The bridge denies an unanswered approval after 60 s (relay.ts
+  // GATE_TIMEOUT_MS); a card that outlives that answers nothing, and sits in
+  // front of a live one.
+  setTimeout(() => {
+    if (!gates.includes(g)) return;
+    gates = gates.filter((other) => other !== g);
+    g.lane.ui.gateSettled(false);
+    g.lane.ui.note("denied: timed out");
+    drawGate();
+    drawLanes();
+  }, 60_000);
   drawGate();
   drawLanes();
 }
 
-function drawGate() {
-  onCard = gates.find((g) => g.lane === shown) ?? gates[0] ?? null;
+// Clicks ignored until this time: a card that has just changed must not take a
+// click, or a double-click (or one aimed at the card that was there a moment
+// ago) approves an action nobody read.
+let armedAt = 0;
+const GATE_ARM_MS = 500;
+
+/** `repick` is for switching lanes only: otherwise the card on screen stays put. */
+function drawGate(repick = false) {
+  const was = onCard;
+  const mine = gates.find((g) => g.lane === shown);
+  onCard = repick && mine ? mine : gates.includes(onCard) ? onCard : (mine ?? gates[0] ?? null);
+  if (onCard !== was) armedAt = Date.now() + GATE_ARM_MS;
+  // The button that was clicked keeps focus, so Enter or Space would answer the next card.
+  if (gate.contains(document.activeElement)) document.activeElement.blur();
   gateLabels();
   gateSecond.textContent = "";
   gateSecond.className = "";
@@ -491,7 +517,7 @@ function replyGate(approved) {
   // A click can still land after the card is gone (double-click, or the task
   // ended first): with nothing on the card there is nothing left to resolve.
   const g = onCard;
-  if (!g) return;
+  if (!g || Date.now() < armedAt) return;
   send({ type: "gate-reply", id: g.id, approved });
   gates = gates.filter((other) => other !== g);
   g.lane.ui.gateSettled(approved);
@@ -505,16 +531,22 @@ gateDeny.addEventListener("click", () => replyGate(false));
 // Tools that land somewhere new, so the header has to be re-read afterwards.
 const MOVES = new Set(["navigate", "use_tab", "back", "forward"]);
 
+// A skill replay can type a secret. What it typed must not reach the journal
+// (chrome.storage.local), the transcript or the raw log: they keep args verbatim.
+const SECRET_FIELD = /password|passcode|\bpin\b|cvc|cvv|security code|card number|one-time|otp/i;
+const masked = (msg) => (msg.name === "type" && SECRET_FIELD.test(msg.label ?? "") ? { ...msg, args: { ...msg.args, text: "(hidden)" } } : msg);
+
 /** Run a tool the bridge asked for, in the lane it belongs to, and answer it. */
 async function answer({ id, name, args, label, run }) {
   const lane = await laneFor(run);
+  const shownArgs = masked({ name, args, label }).args;
   // The row goes up before the call runs: this is the "watch it work" line, and
   // a step that only appears once it has finished is not one.
   // The gate's checks before an action are the bridge's business, not a step
   // the agent took, so they get no row.
-  const row = name === "label" || name === "screenshot" || name === "point" || args?.peek ? null : lane.ui.tool(name, args, label);
+  const row = name === "label" || name === "screenshot" || name === "point" || args?.peek ? null : lane.ui.tool(name, shownArgs, label);
   try {
-    const value = await runTool(name, args, lane.cdp, lane.session.tab ?? null);
+    const value = await runTool(name, args, lane.cdp, lane.session.tab ?? null, lane.scheduled);
     noteTab(lane);
     row?.ok(value);
     if (MOVES.has(name)) setWhere(lane, await lane.cdp.currentPage().catch(() => null));
@@ -666,8 +698,14 @@ function connect() {
   ws.onmessage = async (event) => {
     // Everything, including messages the conversation drops — this is the log
     // that settles "did the agent actually have the tools".
-    ui.raw(`< ${event.data}`);
-    const msg = JSON.parse(event.data);
+    let msg;
+    try {
+      msg = JSON.parse(event.data);
+    } catch (err) {
+      ui.raw(`< ${event.data}`);
+      throw err;
+    }
+    ui.raw(`< ${msg.type === "tool" ? JSON.stringify(masked(msg)) : event.data}`);
     if (msg.type === "pong") return void (missedPong = false);
     if (msg.type === "tool") return void answer(msg);
     if (msg.type === "hello") {
@@ -857,6 +895,9 @@ async function runTask(resume = false) {
 async function runScheduled({ run, task, model }) {
   const lane = await laneFor(run);
   lane.scheduled = true;
+  lane.session.scheduled = true; // kept, so a remount still knows not to take your tab
+  lane.cdp.setBackground(true);
+  store();
   if (!shown.busy && !shown.session.entries.length && shown !== lane) {
     const empty = shown;
     showLane(lane);

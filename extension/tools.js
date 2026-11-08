@@ -55,14 +55,18 @@ const TOOLS = (c) => ({
 /**
  * `c` is the lane's cdp.js and `home` the tab that lane last drove, if any.
  */
-export async function runTool(name, args, c = cdp, home = null) {
+export async function runTool(name, args, c = cdp, home = null, scheduled = false) {
   const tools = TOOLS(c);
   const tool = tools[name];
   if (!tool) throw new Error(`unknown tool ${name} — have ${Object.keys(tools).join(", ")}`);
   // The agent has no attach tool and should not need one: whichever tool runs
   // first takes the active tab. After a panel remount a lane goes back to the
   // tab it was driving instead, or two lanes would both take the one in front.
-  if (c.state().tabId === null && (home == null || !(await c.attach(home).then(() => true, () => false)))) await c.attach();
+  // A scheduled run whose own tab is gone opens a new background one: plain
+  // attach() would take the tab you are working in.
+  if (c.state().tabId === null && (home == null || !(await c.attach(home).then(() => true, () => false)))) {
+    await (scheduled ? c.attachOwn() : c.attach());
+  }
   try {
     return String((await tool(args ?? {})) ?? "ok");
   } catch (err) {
