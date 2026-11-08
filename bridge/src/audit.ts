@@ -83,7 +83,7 @@ export function auditMarkdown(meta: Meta): { name: string; markdown: string } {
     "",
     "## Task, in the user's words",
     "",
-    ...meta.task.map((t) => hide(t).split("\n").map((l) => `> ${l}`).join("\n")),
+    ...meta.task.map((t) => t.split("\n").map((l) => `> ${l}`).join("\n")),
     "",
     "## Actions",
     "",
@@ -100,5 +100,6 @@ export function auditMarkdown(meta: Meta): { name: string; markdown: string } {
       lines.push(`   - the human: **${e.gate.approved ? "approved" : "denied"}**`);
     }
   }
-  return { name: `endoplexity-audit-${stamp}.md`, markdown: `${lines.join("\n")}\n` };
+  // hide the whole file: a secret typed into a field the label check missed shows up in values, results and reasons too
+  return { name: `endoplexity-audit-${stamp}.md`, markdown: hide(`${lines.join("\n")}\n`) };
 }

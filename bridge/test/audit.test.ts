@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { remember } from "../src/page.ts";
 import { dropPanel, setPanel, settle, settleGate } from "../src/relay.ts";
 import { relay, setMode } from "../src/mcp.ts";
-import { auditMarkdown, initAudit, resetAudit } from "../src/audit.ts";
+import { audited, auditMarkdown, initAudit, resetAudit } from "../src/audit.ts";
 import { guard } from "../src/second.ts";
 
 // Its own file: the audit reads the tab's URL before every action once it is
@@ -65,4 +65,14 @@ test("a fresh task starts an empty log", () => {
   assert.match(auditMarkdown(meta).markdown, /No actions were taken\./);
   assert.match(auditMarkdown(meta).markdown, /- Plan: any site\n/);
   assert.match(auditMarkdown({ ...meta, drawn: ["example.com"], approved: ["127.0.0.1"] }).markdown, /- Plan: example\.com; approved during the run: 127\.0\.0\.1\n/);
+});
+
+test("a secret is hidden everywhere in the export, not only in the task", () => {
+  resetAudit();
+  const at = { url: "https://bank.example/login", tool: "type", result: "ok" };
+  audited({ ...at, on: '[textbox] "Password"', value: "hunter22" }, true);
+  audited({ ...at, on: '[textbox] "Confirm password"', value: "hunter22" });
+  const { markdown } = auditMarkdown(meta);
+  assert.equal(markdown.includes("hunter22"), false);
+  resetAudit();
 });

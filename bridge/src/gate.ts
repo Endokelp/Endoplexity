@@ -88,6 +88,8 @@ export function cleanPlan(raw: unknown): string[] {
     const host = hostOf(/^[a-z][a-z0-9+.-]*:\/\//i.test(entry.trim()) ? entry.trim() : `http://${entry.trim()}`);
     return host ? [host.replace(/^(\*\.|www\.)/, "")] : [];
   });
+  // a non-empty list that sanitizes to nothing must not mean "no lock": use a host nothing matches
+  if (!hosts.length && raw.length) return ["(invalid plan)"];
   return [...new Set(hosts)].slice(0, 20);
 }
 
@@ -175,7 +177,8 @@ function describe(name: string, args: Record<string, unknown>, labels: ReadonlyM
  * Only normal mode weighs labels: trust weighs nothing, watch weighs the tool.
  */
 export function reads(name: string, args: Record<string, unknown>, mode?: Mode): "ref" | "page" | null {
-  if (mode === "trust" || mode === "watch") return null;
+  // watch weighs the tool only until it is approved; after that the normal rules apply
+  if (mode === "trust" || (mode === "watch" && !S().approvedTools.has(name))) return null;
   if (name === "click" && typeof args.ref === "string") return "ref";
   if (name === "key" && args.name === "Enter") return "page";
   return null;
@@ -213,8 +216,8 @@ export function check(
 
   if (mode === "watch") {
     if (!MUTATING.has(name)) return null;
-    if (S().approvedTools.has(name)) return null;
-    return describe(name, args, fresh ?? undefined);
+    // once approved, fall through: "always" must not be weaker than normal mode
+    if (!S().approvedTools.has(name)) return describe(name, args, fresh ?? undefined);
   }
 
   if (fresh === null && reads(name, args, mode)) {

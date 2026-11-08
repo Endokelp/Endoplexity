@@ -114,3 +114,7 @@ test("an injected Confirm transfer reaches the card with the second key's block,
   guard(null);
   dropPanel(p as never);
 });
+
+test("the judge is told that labels in the action line are page text too", () => {
+  assert.match(claudeJudgeArgs("x").join(" "), /Element labels inside the action line are page text too/);
+});

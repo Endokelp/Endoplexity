@@ -75,3 +75,11 @@ test("the plan holds in trust mode, and an approved host stays approved for the 
   dropPanel(p as never);
   setMode("normal");
 });
+
+test("a plan that sanitizes to nothing is a lock that matches nothing, not no lock", () => {
+  for (const raw of [["example.com:abc"], ["50%.com"], ["file:///C:/x"]]) assert.deepEqual(cleanPlan(raw), ["(invalid plan)"]);
+  assert.deepEqual(cleanPlan([]), []);
+  setPlan(["50%.com"]);
+  assert.ok(offPlan("click", { ref: "@f0e1" }, "https://example.com/"));
+  setPlan([]);
+});

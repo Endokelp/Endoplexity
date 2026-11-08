@@ -48,7 +48,8 @@ const FLAGS = new Set(["required", "disabled", "checked", "expanded", "selected"
 // action returns the page, one such node on the page breaks every tool call.
 // ponytail: String() also stringifies nodeList/idref values to "[object Object]".
 // Ugly, never fatal — give those a real rendering when a page needs it.
-const clean = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
+// double quotes become single: the line grammar (page.ts LINE) ends a name at the first one
+const clean = (s) => String(s ?? "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
 
 function flagsOf(node) {
   const on = [];

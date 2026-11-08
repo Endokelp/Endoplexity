@@ -217,3 +217,9 @@ test("a delta is built from lines, so an unchanged control keeps its exact ref",
   assert.match(patch, /^\+ @f0e99 \[button\] "Close banner"$/m);
   assert.doesNotMatch(patch, /^- /m, "nothing was removed — with positional refs every line below would have moved");
 });
+
+test("a double quote in a name or value becomes a single quote, so a line still parses", () => {
+  const { text } = serialize([node("1", "button", { name: 'Place "order" now', value: 'say "hi"', backendDOMNodeId: 1 })], "f0");
+  assert.equal(text.includes('""'), false);
+  assert.match(text, /\[button\] "Place 'order' now" = "say 'hi'"/);
+});
