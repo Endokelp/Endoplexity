@@ -94,13 +94,15 @@ if (cmd === "launch") {
     await sleep(1000);
   } catch {}
   // A new profile every launch: Browser.close returns before Chrome lets go of
-  // the old one, and reusing it raced into EPERM. The old ones are swept here.
-  for (const old of readdirSync(tmpdir()).filter((d) => d.startsWith("endo-live-"))) {
+  // the old one, and reusing it raced into EPERM. The old ones are swept here,
+  // only this port's: another harness browser on another port may be running.
+  const mine = `endo-live-${new URL(DEV).port}-`;
+  for (const old of readdirSync(tmpdir()).filter((d) => d.startsWith(mine))) {
     try {
       rmSync(join(tmpdir(), old), { recursive: true, force: true });
     } catch {}
   }
-  const profile = join(tmpdir(), `endo-live-${Date.now()}`);
+  const profile = join(tmpdir(), `${mine}${Date.now()}`);
   let ext = resolve(arg ?? join(REPO, "extension"));
   // ENDO_BRIDGE_PORT: drive a second bridge, not the user's on 8787, so their
   // own Chrome's panel can never be the one a run here acts through. The

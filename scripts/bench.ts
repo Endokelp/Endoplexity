@@ -18,7 +18,13 @@
  *   npm run bench -- gpt-6.1-sol codex-hn "the same task"
  *
  * Writes <label>.jsonl beside the repo's .endo-bridge.log so a run can be read
- * back without paying for it twice, then prints the summary.
+ * back without paying for it twice, then prints the summary. Also writes
+ * <label>.summary.json (the numbers) and <label>.final.txt (the open tabs and
+ * the whole page the run ended on), which bench/suite.ts and its judge read.
+ *
+ *   ENDO_BENCH_URL=https://...   start there instead of about:blank, named in
+ *                                the prompt the way the panel names a page
+ *   ENDO_BENCH_TIMEOUT=600000    kill the CLI after this many ms: a stall
  *
  * REQUIRES a connected side panel — and one running the extension as it is on
  * disk. Chrome caches an unpacked extension's files until you reload it at
@@ -61,12 +67,16 @@ async function tool(name: string, args: Record<string, unknown> = {}) {
 // and neither model inherits the other's page. The panel names the current page
 // in every task prompt, so a measurement that skipped the line would not be
 // measuring the product.
-const parked = await tool("navigate", { url: "about:blank" });
+const start = process.env.ENDO_BENCH_URL ?? "about:blank";
+const parked = await tool("navigate", { url: start });
 if (parked.startsWith("error:")) {
   console.error(`${parked}\n\nOpen the side panel and check it says connected.`);
   process.exit(1);
 }
-console.log(`tabs before the run:\n${await tool("tabs")}`);
+const before = await tool("tabs");
+console.log(`tabs before the run:\n${before}`);
+// The tab the panel drives is starred: `* id 7 — "Title" https://...`.
+const here = /^\* id \d+ — "(.*)" (\S+)/m.exec(before);
 
 if (model === "replay") {
   const t0 = Date.now();
@@ -82,20 +92,38 @@ if (model === "replay") {
   process.exit(row.ok ? 0 : 1);
 }
 
-const prompt =`The page you are on is "about:blank" — about:blank\n\n${task}`;
+const prompt =
+  start === "about:blank" ? `The page you are on is "about:blank" — about:blank\n\n${task}` : `The page you are on is "${here?.[1] ?? ""}" — ${here?.[2] ?? start}\n\n${task}`;
 
 const events: Record<string, unknown>[] = [];
 const started = Date.now();
+const cap = Number(process.env.ENDO_BENCH_TIMEOUT) || 0;
+let timedOut = false;
 await new Promise<void>((done) => {
-  MODELS[model](prompt, model, (event: Record<string, unknown>) => {
+  const child = MODELS[model](prompt, model, (event: Record<string, unknown>) => {
     events.push({ ...event, at: Date.now() - started });
     if (event.type === "done" || event.type === "failed") done();
   });
+  if (cap)
+    setTimeout(() => {
+      timedOut = true;
+      child.kill();
+      // The adapter reports the kill as its end; this is for one that never does.
+      setTimeout(done, 15_000).unref();
+    }, cap).unref();
 });
 
 const wall = Date.now() - started;
 const out = fileURLToPath(new URL(`${label}.jsonl`, REPO));
 writeFileSync(out, events.map((e) => JSON.stringify(e)).join("\n"));
+
+// Where the run ended, for a judge: a whole page, not a delta against what the
+// model last read, so /forget first (same token as /mcp).
+const forgetUrl = new URL(mcpUrl);
+forgetUrl.pathname = "/forget";
+await fetch(forgetUrl, { method: "POST" }).catch(() => {});
+const finalTabs = await tool("tabs");
+writeFileSync(fileURLToPath(new URL(`${label}.final.txt`, REPO)), `${finalTabs}\n\n${await tool("snapshot")}`);
 
 // --- read the run back -------------------------------------------------------
 
@@ -168,5 +196,30 @@ console.log(`output tokens      ${num("output_tokens", "outputTokens")}`);
 console.log(`cost usd           ${result.total_cost_usd ?? "(not reported — subscription)"}`);
 console.log(`fake xml           ${/<function_calls>|<invoke name=/.test(JSON.stringify(events))}`);
 console.log(`sequence           ${calls.map((c) => c.name).join(" -> ")}`);
+const end = (events.findLast((e) => e.type === "done" || e.type === "failed") ?? {}) as Record<string, unknown>;
+writeFileSync(
+  fileURLToPath(new URL(`${label}.summary.json`, REPO)),
+  JSON.stringify({
+    model,
+    start,
+    wall,
+    timedOut,
+    error: end.type === "failed" || end.error ? String(end.error ?? end.message ?? "failed").slice(0, 500) : null,
+    num_turns: result.num_turns ?? null,
+    tool_turns: toolTurns,
+    tool_calls: calls.length,
+    input_tokens: num("input_tokens", "inputTokens"),
+    cache_read: num("cache_read_input_tokens", "cacheReadTokens"),
+    cache_write: num("cache_creation_input_tokens", "cacheWriteTokens"),
+    output_tokens: num("output_tokens", "outputTokens"),
+    cost_usd: result.total_cost_usd ?? null,
+    // Images a tool handed the model. Endoplexity sends none; the count is here
+    // so the comparison rows (bench/cic.ts) are read the same way.
+    screenshots: events.flatMap((e) => (e.type === "user" ? ((e.message as any)?.content ?? []) : [])).filter((p: any) => p.type === "tool_result" && Array.isArray(p.content)).flatMap((p: any) => p.content).filter((c: any) => c.type === "image").length,
+    sequence: calls.map((c) => c.name),
+    answer,
+    final_tabs: finalTabs,
+  }, null, 2),
+);
 console.log(`\nfull stream: ${out}`);
 console.log(`\nanswer (${answer.length} chars):\n${answer.slice(0, 1200)}`);
