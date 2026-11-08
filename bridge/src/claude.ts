@@ -285,6 +285,15 @@ export function errorIn(event: Record<string, unknown>): { text: string; limit: 
 }
 
 /**
+ * The failure to report after `event`. A turn that succeeds clears an earlier
+ * one: a queued steer turn can recover a run whose first turn errored.
+ */
+export function failureAfter(event: Record<string, unknown>, prev: { text: string; limit: boolean } | null) {
+  if (event.type === "result" && event.is_error !== true) prev = null;
+  return errorIn(event) ?? prev;
+}
+
+/**
  * Spawn `claude -p` with browser tools and nothing else. Pass `resume` to
  * continue a previous run's transcript rather than starting a fresh one.
  *
@@ -337,7 +346,7 @@ export function runClaude(
     try { event = JSON.parse(line); } catch {}
     if (!event || typeof event !== "object") return onEvent({ type: "stray", text: line });
     if (event.type === "system" && (event.subtype === "task_started" || event.subtype === "task_notification")) forget(run);
-    failure = errorIn(event) ?? failure;
+    failure = failureAfter(event, failure);
     // stdin open is claude waiting for the next message. A result with nothing
     // queued behind it is the run's end, so close it and let claude exit; a
     // message it already queued is in the pipe ahead of the close.

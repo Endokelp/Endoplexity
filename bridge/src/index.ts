@@ -359,6 +359,7 @@ function startTask(
     // gone. The panel stays busy throughout, so this reads as one slow task.
     if (redo) {
       if (!terminal) return;
+      if (lane.stopping) return send({ type: "done", stopped: true, resumable: lane.session !== null });
       send({ type: "retry", reason: "the agent wrote its tool calls as text instead of calling them — retrying once" });
       // Never resumed: the point of the retry is to discard a transcript whose
       // only content is faked tool calls.
@@ -389,7 +390,14 @@ function startTask(
   lane.model = chosen;
   // The CLI's events arrive on its stdout, outside the run that spawned it, so
   // each is handled back inside it: everything onEvent calls reads this run's state.
-  lane.running = MODELS[chosen](prompt, chosen, (event) => inRun(run, () => onEvent(event)), resuming?.id, run);
+  // cursor and codex take the prompt as an argv element, so a spawn can throw
+  // here (too long, a NUL). It ends the run like any failed start, or the lane
+  // would show busy for ever.
+  try {
+    lane.running = MODELS[chosen](prompt, chosen, (event) => inRun(run, () => onEvent(event)), resuming?.id, run);
+  } catch (err) {
+    onEvent({ type: "failed", error: `could not start ${chosen}: ${(err as Error).message}` });
+  }
 }
 
 /**
@@ -425,6 +433,7 @@ function steer(text: unknown) {
   if (typeof text !== "string" || !text.trim()) return;
   const lane = L();
   if (!lane.running) return void sendPanel({ type: "note", text: "nothing is running: Run or Reply to send it" });
+  if (lane.stopping) return void sendPanel({ type: "note", text: "the run is being stopped: Reply to send it" });
   lane.asked.push(`While it ran, the user said: ${text}`);
   lane.ownWords.push(`While it ran, the user said: ${text}`);
   if (lane.running.steer?.(text)) return void sendPanel({ type: "note", text: `sent to the running agent (${lane.model})` });
@@ -483,6 +492,8 @@ async function startSkill(id: unknown, vars: unknown, model: unknown, fallbacks:
     finish(!r.stop);
     return stop();
   }
+  // A Stop during the page read above lands here, after the replay's own check.
+  if (lane.stopping) return void send({ type: "done", stopped: true, resumable: false });
   send({ type: "handoff", reason: `replay stopped at step ${r.stop.at + 1} of ${r.of} (${r.stop.why}) — handing the rest to ${model}` });
   // The skill's task is the one place its file reaches a prompt as a task: the
   // user just chose to run it. Everything else in the hand-off is framed as
@@ -595,8 +606,9 @@ function onMessage(ws: WebSocket, msg: Record<string, any>) {
     // the bridge. It is never in a prompt and the model never sees it, so
     // nothing the agent says can widen its own permissions. The plan lock and
     // the second key ride with it, for the same reason.
-    setMode(msg.mode, msg.plan);
-    guardRun(msg.secondKey, msg.model);
+    // Not while a run is live: startTask refuses this task, and the settings
+    // must stay the running one's (run-skill below does the same).
+    if (!L().running) (setMode(msg.mode, msg.plan), guardRun(msg.secondKey, msg.model));
     // The failover order is the human's too, and failover.ts admits only
     // models MODELS knows, so it can name no binary the dropdown cannot.
     startTask(msg.prompt, msg.model, { resume: msg.resume === true, words: msg.task, fallbacks: msg.fallbacks ?? [] });

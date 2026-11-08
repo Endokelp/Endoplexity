@@ -384,10 +384,13 @@ export function finish(ok: boolean): void {
   }
   // A run of navigates is reading, not a procedure worth keeping.
   if (st.replayed || trace.length < 2 || !trace.some((s) => s.target) || !hostOf(trace[0].url ?? "")) return;
-  const name = slug(words.split(/\s+/).slice(0, 5).join(" "), "-", 40) || "skill";
+  // The name comes from the scrubbed task: a password in the first words
+  // must not become a file name the model is listed.
+  const skill = asSkill(trace, {}, "skill", words);
+  const name = slug(skill.task.split(/\s+/).slice(0, 5).join(" "), "-", 40) || "skill";
   // One offer at a time: the newest run is the one the user just watched.
   proposals = proposals.filter((p) => p.kind !== "skill");
-  propose({ id: `p${++pseq}`, kind: "skill", skill: asSkill(trace, {}, name, words) });
+  propose({ id: `p${++pseq}`, kind: "skill", skill: { ...skill, name } });
 }
 
 /** The proposals as the panel draws them: a title, lines, and a hint. */
@@ -402,8 +405,10 @@ export function pending() {
         hint: "The agent proposed this after reading pages, so read it as you would a stranger's. A saved note is shown to every engine whenever a run arrives at this site.",
       };
     }
+    const show = (vars: Record<string, string>) =>
+      Object.entries(vars).map(([k, v]) => (v ? `${k} = "${v}"` : `${k} (asked for on every run)`));
     if (p.kind === "skill") {
-      const vars = Object.entries(p.skill.vars).map(([k, v]) => (v ? `${k} = "${v}"` : `${k} (asked for on every run)`));
+      const vars = show(p.skill.vars);
       return {
         id: p.id,
         kind: p.kind,
@@ -413,6 +418,8 @@ export function pending() {
         name: p.skill.name,
       };
     }
+    // Defaults a heal adds or changes are typed by every later replay, so the card shows them.
+    const vars = show(Object.fromEntries(Object.entries(p.skill.vars).filter(([k, v]) => p.old.vars[k] !== v)));
     return {
       id: p.id,
       kind: p.kind,
@@ -420,6 +427,7 @@ export function pending() {
       lines: [
         ...p.old.steps.slice(p.from).map((s, i) => `- ${describe(s, p.from + i)}`),
         ...p.skill.steps.slice(p.from).map((s, i) => `+ ${describe(s, p.from + i)}`),
+        ...(vars.length ? ["", `values: ${vars.join(", ")}`] : []),
       ],
       hint: `The replay stopped at step ${p.from + 1}; this is what the model did from there.`,
     };
@@ -473,7 +481,11 @@ export function noteFor(host: string): string {
   } catch {
     return "";
   }
-  return text.length > NOTE_CAP ? `${text.slice(0, NOTE_CAP)}…` : text;
+  // The newest notes are at the end, so keep the tail, from a whole line.
+  if (text.length <= NOTE_CAP) return text;
+  const tail = text.slice(-NOTE_CAP);
+  const nl = tail.indexOf("\n");
+  return `…\n${nl >= 0 ? tail.slice(nl + 1) : tail}`;
 }
 
 // One listener, for index.ts to push the skill list and the proposals.

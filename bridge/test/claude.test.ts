@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { claudeArgs, PRELOAD, userLine } from "../src/claude.ts";
+import { claudeArgs, failureAfter, PRELOAD, userLine } from "../src/claude.ts";
 
 // Spawn args are a security boundary — pin the ones that already bit us. These
 // read the argv that actually reaches spawn rather than regexing the source
@@ -97,4 +97,13 @@ test("background tasks are off, so a scout never drives the tab alongside the ma
 
 test("--bare never reaches the spawn — it would force ANTHROPIC_API_KEY", () => {
   assert.ok(!args("abc-123").includes("--bare"));
+});
+
+test("a turn that succeeds clears an earlier turn's failure", () => {
+  const err = { type: "assistant", error: "rate_limit", message: { content: [{ text: "limit" }] } };
+  const hit = failureAfter(err, null);
+  assert.equal(hit?.limit, true);
+  assert.equal(failureAfter({ type: "system" }, hit), hit, "other events keep it");
+  assert.equal(failureAfter({ type: "result", is_error: false }, hit), null);
+  assert.equal(failureAfter({ type: "result", is_error: true, result: "x" }, hit)?.text, "x");
 });

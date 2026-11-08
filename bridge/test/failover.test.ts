@@ -172,3 +172,9 @@ test("the page handed over is read whole: the panel forgets its last page first"
     dropPanel(panel as never);
   }
 });
+
+test("a hand-off prompt caps the page and strips NULs, since cursor and codex take it in argv", () => {
+  const prompt = handoffPrompt({ from: "sonnet", asked: ["t"], steps: [], where: null, page: "a\u0000b".repeat(20_000) });
+  assert.ok(!prompt.includes("\u0000"));
+  assert.ok(prompt.length < 13_000, String(prompt.length));
+});

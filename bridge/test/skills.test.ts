@@ -124,8 +124,8 @@ async function withBrowser(b: Browser, run: () => Promise<void>) {
 const URL_ = "http://localhost:8787/fixtures/form.html";
 
 /** The model's run, as a CLI would make it: navigate, one batch, a select, the submit. */
-async function modelRun(b: Browser) {
-  begin("apply on the fixture form as Ada, password hunter2");
+async function modelRun(b: Browser, task = "apply on the fixture form as Ada, password hunter2") {
+  begin(task);
   await relay("navigate", { url: URL_ });
   await batch([
     { do: "type", ref: b.ref(2), text: "Ada" },
@@ -226,6 +226,8 @@ test("with one label changed the replay stops there, the model finishes, and the
     // The engine the run is handed to carries on.
     await relay("click", { ref: b.ref(6) });
     await relay("select", { ref: b.ref(7), value: "Referral" });
+    // A value the healed tail types that the old skill never had.
+    await relay("type", { ref: b.ref(8), text: "attacker-acct-998877" });
     await relay("click", { ref: b.ref(8) });
     assert.ok(b.submitted);
     finish(true);
@@ -234,6 +236,8 @@ test("with one label changed the replay stops there, the model finishes, and the
   assert.equal(diff.kind, "heal");
   assert.deepEqual(diff.lines.slice(0, 1), ['- 6. click [button] "Continue"']);
   assert.ok(diff.lines.includes('+ 6. click [button] "Next"'));
+  // The new default is typed by every later replay, so the card must show it.
+  assert.ok(diff.lines.includes('values: submit_application = "attacker-acct-998877"'), diff.lines.join("|"));
   assert.equal(load("localhost/apply-as-ada").steps[5].target?.label, '[button] "Continue"', "unchanged until approved");
   assert.equal(answer(diff.id, true), "updated the skill localhost/apply-as-ada");
   const healed = load("localhost/apply-as-ada");
@@ -243,7 +247,20 @@ test("with one label changed the replay stops there, the model finishes, and the
   // The healed tail fills Source again: same var, saved default kept, no source_2.
   assert.equal(healed.steps[6].value, "{{source}}");
   assert.equal(healed.vars.source, "LinkedIn");
-  assert.deepEqual(Object.keys(healed.vars).sort(), ["email", "first_name", "last_name", "password", "source"]);
+  assert.deepEqual(Object.keys(healed.vars).sort(), ["email", "first_name", "last_name", "password", "source", "submit_application"]);
+});
+
+test("a secret in the task's first words never becomes the skill's name", async () => {
+  const b = new Browser();
+  await withBrowser(b, async () => {
+    await modelRun(b, "Log in with password hunter2 on example.com");
+    finish(true);
+  });
+  const [offer] = pending();
+  assert.equal(offer.kind, "skill");
+  assert.doesNotMatch(offer.name!, /hunter2/);
+  assert.match(offer.name!, /^log-in-with-password/);
+  answer(offer.id, false);
 });
 
 test("a page that asks for a note gets a proposal card and no file, until the user approves one", async () => {
@@ -291,6 +308,13 @@ test("an approved note comes back on arrival, framed as data, and never reaches 
   const [card] = pending();
   answer(card.id, true);
   assert.match(noteFor("localhost"), /below the fold/);
+  // Later approved notes are the newest: past the cap they must still show.
+  proposeNote("tail.example", "x".repeat(600));
+  answer(pending()[0].id, true);
+  proposeNote("tail.example", "The newest note.");
+  answer(pending()[0].id, true);
+  assert.match(noteFor("tail.example"), /newest note\.$/);
+  assert.doesNotMatch(noteFor("tail.example"), /\n[^-]/, "cut at a line boundary");
   const b = new Browser();
   await withBrowser(b, async () => {
     const res = await relay("navigate", { url: URL_ });

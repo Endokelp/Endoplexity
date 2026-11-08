@@ -76,6 +76,10 @@ export type Handoff = {
   page: string | undefined;
 };
 
+// The page rides in argv on cursor and codex, which the OS caps (ENAMETOOLONG
+// at ~32k on Windows), and the engine re-reads the page anyway.
+const PAGE_CAP = 12_000;
+
 /**
  * The prompt for the engine taking over. Only the user's words are framed as
  * the task. The step log is page content, framed the way a tool result is.
@@ -93,6 +97,6 @@ export function handoffPrompt(h: Handoff): string {
     "",
     "Carry on from where it stopped, without redoing what worked. Its last step may or may not have landed, so read the page below before you act.",
     ...(h.where ? [`The page you are on is "${h.where.title}" at ${h.where.url}`] : []),
-    ...(h.page ? ["", "the page as it is now:", h.page] : []),
+    ...(h.page ? ["", "the page as it is now:", h.page.replaceAll("\u0000", "").slice(0, PAGE_CAP)] : []),
   ].join("\n");
 }
