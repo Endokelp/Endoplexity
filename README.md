@@ -14,9 +14,9 @@
 
 <br>
 
-<a href="docs/endoplexity.mp4"><img src="docs/film-poster.jpg" width="100%" alt="Play the 26-second film: Endoplexity drives your own Chrome on the plan you already pay for, reads pages as text instead of screenshots, and stops for you before anything irreversible."></a>
+<a href="https://cdn.jsdelivr.net/gh/Endokelp/Endoplexity@382a10b9a946740410ea6cc473849d0512feee1b/docs/endoplexity.mp4"><img src="docs/film-poster.jpg" width="100%" alt="Play the 26-second film: Endoplexity drives your own Chrome on the plan you already pay for, reads pages as text instead of screenshots, and stops for you before anything irreversible."></a>
 
-<sub><b><a href="docs/endoplexity.mp4">▶ Play the 26-second film, sound on</a></b> · every number in it is from <a href="#the-numbers">the benchmark below</a> · <a href="docs/demo.mp4">an unedited real run</a><br>Music: "Inspiring Progress" by Soundrider/Dope, <a href="https://www.jamendo.com/track/1670591">Jamendo</a>, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a></sub>
+<sub><b><a href="https://cdn.jsdelivr.net/gh/Endokelp/Endoplexity@382a10b9a946740410ea6cc473849d0512feee1b/docs/endoplexity.mp4">▶ Play the 26-second film, sound on</a></b> · every number in it is from <a href="#the-numbers">the benchmark below</a> · <a href="docs/demo.mp4">an unedited real run</a><br>Music: "Inspiring Progress" by Soundrider/Dope, <a href="https://www.jamendo.com/track/1670591">Jamendo</a>, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a></sub>
 
 </div>
 
