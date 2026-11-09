@@ -6,13 +6,12 @@
 //   node bench/chart.mjs
 import { readFileSync, writeFileSync } from "node:fs";
 
-const { results, paired } = JSON.parse(readFileSync(new URL("results.json", import.meta.url), "utf8"));
+const { paired } = JSON.parse(readFileSync(new URL("results.json", import.meta.url), "utf8"));
 // Row i of each panel: 0 is Endoplexity (claude-off), 1 is Claude in Chrome.
 const rows = [["Endoplexity"], ["Claude in Chrome"]];
 const m = paired.medians;
 const n = paired.tasks;
 const panels = [
-  ["Tasks completed", "of 30 · higher wins", (i) => [results["claude-off"], results["cic-claude"]][i].success, (v) => `${v}`],
   ["Median time per task", `${n} both finished · lower wins`, (i) => m.wall_s[i], (v) => `${Math.round(v)} s`],
   ["Median tokens per task", `${n} both finished · lower wins`, (i) => m.tokens[i], (v) => `${Math.round(v / 1000)}k`],
   ["Median cost per task", `${n} both finished · API price`, (i) => m.cost_usd[i], (v) => `$${v.toFixed(2)}`],

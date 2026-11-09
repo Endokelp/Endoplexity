@@ -5,32 +5,25 @@
 <text x="16" y="69" font-size="13" font-weight="600" fill="#1f2328">Endoplexity</text>
 <rect x="0" y="94" width="10" height="10" rx="2" fill="#6250d6"/>
 <text x="16" y="103" font-size="13" font-weight="600" fill="#1f2328">Claude in Chrome</text>
-<text x="140" y="18" font-size="13" font-weight="600" fill="#1f2328">Tasks completed</text>
-<text x="140" y="35" font-size="11" fill="#59636e">of 30 · higher wins</text>
+<text x="140" y="18" font-size="13" font-weight="600" fill="#1f2328">Median time per task</text>
+<text x="140" y="35" font-size="11" fill="#59636e">20 both finished · lower wins</text>
 <line x1="140" y1="52" x2="140" y2="112" stroke="#d1d9e0" stroke-width="1"/>
-<path class="bar" style="animation-delay:0.00s" d="M140 58h104.24a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-104.24z" fill="#16804f"/>
-<text class="val" style="animation-delay:0.70s" x="254.24" y="69" font-size="12" font-weight="600" fill="#1f2328">22</text>
-<path class="bar" style="animation-delay:0.08s" d="M140 92h119a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-119z" fill="#6250d6"/>
-<text class="val" style="animation-delay:0.78s" x="269" y="103" font-size="12" font-weight="600" fill="#1f2328">25</text>
-<text x="327" y="18" font-size="13" font-weight="600" fill="#1f2328">Median time per task</text>
-<text x="327" y="35" font-size="11" fill="#59636e">20 both finished · lower wins</text>
-<line x1="327" y1="52" x2="327" y2="112" stroke="#d1d9e0" stroke-width="1"/>
-<path class="bar" style="animation-delay:0.15s" d="M327 58h62.530193341802544a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-62.530193341802544z" fill="#16804f"/>
-<text class="val" style="animation-delay:0.85s" x="399.53019334180254" y="69" font-size="12" font-weight="600" fill="#1f2328">31 s</text>
-<path class="bar" style="animation-delay:0.23s" d="M327 92h119a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-119z" fill="#6250d6"/>
-<text class="val" style="animation-delay:0.93s" x="456" y="103" font-size="12" font-weight="600" fill="#1f2328">57 s</text>
-<text x="514" y="18" font-size="13" font-weight="600" fill="#1f2328">Median tokens per task</text>
-<text x="514" y="35" font-size="11" fill="#59636e">20 both finished · lower wins</text>
-<line x1="514" y1="52" x2="514" y2="112" stroke="#d1d9e0" stroke-width="1"/>
-<path class="bar" style="animation-delay:0.30s" d="M514 58h99.78395297310477a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-99.78395297310477z" fill="#16804f"/>
-<text class="val" style="animation-delay:1.00s" x="623.7839529731048" y="69" font-size="12" font-weight="600" fill="#1f2328">239k</text>
-<path class="bar" style="animation-delay:0.38s" d="M514 92h119a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-119z" fill="#6250d6"/>
-<text class="val" style="animation-delay:1.08s" x="643" y="103" font-size="12" font-weight="600" fill="#1f2328">283k</text>
-<text x="701" y="18" font-size="13" font-weight="600" fill="#1f2328">Median cost per task</text>
-<text x="701" y="35" font-size="11" fill="#59636e">20 both finished · API price</text>
-<line x1="701" y1="52" x2="701" y2="112" stroke="#d1d9e0" stroke-width="1"/>
-<path class="bar" style="animation-delay:0.45s" d="M701 58h94.72291572949464a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-94.72291572949464z" fill="#16804f"/>
-<text class="val" style="animation-delay:1.15s" x="805.7229157294946" y="69" font-size="12" font-weight="600" fill="#1f2328">$0.23</text>
-<path class="bar" style="animation-delay:0.53s" d="M701 92h119a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-119z" fill="#6250d6"/>
-<text class="val" style="animation-delay:1.23s" x="830" y="103" font-size="12" font-weight="600" fill="#1f2328">$0.29</text>
+<path class="bar" style="animation-delay:0.00s" d="M140 58h96.2460365800602a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-96.2460365800602z" fill="#16804f"/>
+<text class="val" style="animation-delay:0.70s" x="246.2460365800602" y="69" font-size="12" font-weight="600" fill="#1f2328">31 s</text>
+<path class="bar" style="animation-delay:0.08s" d="M140 92h181.33333333333334a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-181.33333333333334z" fill="#6250d6"/>
+<text class="val" style="animation-delay:0.78s" x="331.33333333333337" y="103" font-size="12" font-weight="600" fill="#1f2328">57 s</text>
+<text x="389.33333333333337" y="18" font-size="13" font-weight="600" fill="#1f2328">Median tokens per task</text>
+<text x="389.33333333333337" y="35" font-size="11" fill="#59636e">20 both finished · lower wins</text>
+<line x1="389.33333333333337" y1="52" x2="389.33333333333337" y2="112" stroke="#d1d9e0" stroke-width="1"/>
+<path class="bar" style="animation-delay:0.15s" d="M389.33333333333337 58h152.37907277248308a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-152.37907277248308z" fill="#16804f"/>
+<text class="val" style="animation-delay:0.85s" x="551.7124061058164" y="69" font-size="12" font-weight="600" fill="#1f2328">239k</text>
+<path class="bar" style="animation-delay:0.23s" d="M389.33333333333337 92h181.33333333333334a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-181.33333333333334z" fill="#6250d6"/>
+<text class="val" style="animation-delay:0.93s" x="580.6666666666667" y="103" font-size="12" font-weight="600" fill="#1f2328">283k</text>
+<text x="638.6666666666667" y="18" font-size="13" font-weight="600" fill="#1f2328">Median cost per task</text>
+<text x="638.6666666666667" y="35" font-size="11" fill="#59636e">20 both finished · API price</text>
+<line x1="638.6666666666667" y1="52" x2="638.6666666666667" y2="112" stroke="#d1d9e0" stroke-width="1"/>
+<path class="bar" style="animation-delay:0.30s" d="M638.6666666666667 58h144.75322803685373a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-144.75322803685373z" fill="#16804f"/>
+<text class="val" style="animation-delay:1.00s" x="793.4198947035204" y="69" font-size="12" font-weight="600" fill="#1f2328">$0.23</text>
+<path class="bar" style="animation-delay:0.38s" d="M638.6666666666667 92h181.33333333333334a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-181.33333333333334z" fill="#6250d6"/>
+<text class="val" style="animation-delay:1.08s" x="830.0000000000001" y="103" font-size="12" font-weight="600" fill="#1f2328">$0.29</text>
 </svg>

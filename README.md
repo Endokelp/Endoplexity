@@ -93,11 +93,11 @@ differ.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/bench-dark.svg">
-  <img src="docs/bench-light.svg" width="100%" alt="Endoplexity against Claude in Chrome, both on Claude Sonnet 5.5. Tasks completed of 30: 22 and 25. On the 20 tasks both finished: median time 31 s and 57 s, median tokens 239k and 283k, median API-equivalent cost $0.23 and $0.29.">
+  <img src="docs/bench-light.svg" width="100%" alt="Endoplexity against Claude in Chrome, both on Claude Sonnet 5.5. On the 20 tasks both finished: median time 31 s and 57 s, median tokens 239k and 283k, median API-equivalent cost $0.23 and $0.29.">
 </picture>
 
-<sub>Claude in Chrome finished three more of the thirty. On the 20 tasks both
-finished, it took longer, read more and cost more at the median. Every row, the judging and
+<sub>On the 20 tasks both finished, Claude in Chrome took longer, read more and
+cost more at the median. Every row, the judging and
 what the numbers don't show: <a href="docs/benchmarks.md">docs/benchmarks.md</a>.
 Method and raw evidence: <a href="bench/METHOD.md">bench/METHOD.md</a>.</sub>
 
