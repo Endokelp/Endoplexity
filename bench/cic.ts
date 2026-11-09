@@ -68,11 +68,22 @@ const result = events.findLast((e) => e.type === "result") ?? {};
 const usage = result.usage ?? {};
 
 // The end state for the judge, read over the test browser's debugging port: the
-// most recently active page, its text and (in suite.ts) its screenshot.
+// page the agent last saw, its text and (in suite.ts) its screenshot. Claude in
+// Chrome works in a tab of its own, so the first page tab can be a previous
+// task's leftover: on 2026-11-07/08 it was for 14 of 30 runs.
+const seen = events.flatMap((e) =>
+  (e.message?.content ?? []).flatMap((p: any) => [
+    p.input?.url,
+    ...(Array.isArray(p.content) ? p.content : []).map((c: any) => /^URL: (\S+)/m.exec(c.text ?? "")?.[1]),
+  ]),
+).filter(Boolean);
+const lastUrl = seen.at(-1);
 let finalTabs = "";
 let finalText = "";
 try {
-  const page = (await (await fetch(`${DEV}/json/list`)).json()).find((t: any) => t.type === "page" && /^https?:/.test(t.url));
+  const pages = (await (await fetch(`${DEV}/json/list`)).json()).filter((t: any) => t.type === "page" && /^https?:/.test(t.url));
+  const host = (u: string) => URL.parse(u)?.hostname;
+  const page = pages.find((t: any) => t.url === lastUrl) ?? pages.find((t: any) => lastUrl && host(t.url) === host(lastUrl)) ?? pages[0];
   if (page) {
     finalTabs = `* id 0 — "${page.title}" ${page.url}`;
     const ws = new WebSocket(page.webSocketDebuggerUrl);
