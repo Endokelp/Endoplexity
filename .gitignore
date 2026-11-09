@@ -26,6 +26,12 @@ dist/
 demoVid.mp4
 *.mp4
 !docs/demo.mp4
+!docs/endoplexity.mp4
+
+# The README film's HyperFrames project: local only. Its fonts are this
+# machine's Segoe UI and its sound effects are Pixabay files, neither of
+# which may be redistributed on their own; the rendered film is what ships.
+video/
 
 # Phase 23's raw evidence (streams, end pages, screenshots, judge packets)
 # ships as a release asset; the summaries, verdicts and results are committed.
