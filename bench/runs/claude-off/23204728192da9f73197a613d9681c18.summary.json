@@ -1,0 +1,23 @@
+{
+  "model": "claude-sonnet-5-5",
+  "start": "https://www.mayoclinic.org/",
+  "start_error": null,
+  "wall": 13844,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 3,
+  "tool_turns": 2,
+  "tool_calls": 2,
+  "input_tokens": 8,
+  "cache_read": 43667,
+  "cache_write": 11225,
+  "output_tokens": 1267,
+  "cost_usd": 0.1249024,
+  "screenshots": 0,
+  "sequence": [
+    "ToolSearch",
+    "mcp__endo__navigate"
+  ],
+  "answer": "Source: Mayo Clinic, \"Fever – Symptoms and causes\" (https://www.mayoclinic.org/diseases-conditions/fever/symptoms-causes/syc-20352759).\n\n**Symptoms**\n- A fever is a temporary rise in body temperature. An oral temperature of 100 F (37.8 C) or higher is generally considered a fever. The traditional average is 98.6 F (37 C).\n- Depending on the cause, other symptoms can include:\n  - sweating\n  - chills and shivering\n  - headache\n  - muscle aches\n  - loss of appetite\n  - irritability\n  - dehydration\n  - general weakness\n\n**When to see a doctor**\n- **Infants under 3 months:** Call if the rectal temperature is 100.4 F (38 C) or higher.\n- **3 to 6 months:** Call if the rectal temperature is above 102 F (38.9 C), or if the baby is unusually irritable, sluggish or uncomfortable.\n- **7 to 24 months:** Call if the rectal temperature is above 102 F and lasts longer than a day with no other symptoms.\n- **Children:** Call if the fever lasts more than 3 days, or if the child is listless or confused. Seek care immediately after a fever from being left in a hot car. A seizure with the fever also needs attention. Call 911 if it lasts more than 5 minutes.\n- **Adults:** Call if the temperature is 103 F (39.4 C) or higher. Get immediate care if the fever comes with any of these:\n  - severe headache\n  - rash\n  - stiff neck\n  - confusion\n  - persistent vomiting\n  - trouble breathing or chest pain\n  - abdominal pain\n  - pain when urinating\n  - seizures\n\n**Causes**\n- The hypothalamus, the brain's \"thermostat,\" can set body temperature higher when the immune system responds to disease. The body then makes more heat, for example by shivering, and holds on to it.\n- Fevers below 104 F (40 C) from common viral infections like the flu may help the immune system fight disease. They are generally not harmful.\n- Fever can be caused by:\n  - viral infections\n  - bacterial infections\n  - heat exhaustion\n  - inflammatory conditions such as rheumatoid arthritis\n  - a cancerous tumor\n  - some medications, such as certain antibiotics and drugs for high blood pressure or seizures\n  - some immunizations, such as DTaP, pneumococcal or COVID vaccines\n\n**Complication:** Children aged 6 months to 5 years can have febrile seizures. A fever is a vital sign, not a condition, so it has no risk factors of its own. The conditions that cause it, such as infections, do.",
+  "final_tabs": "* id 914606267 — \"Fever - Symptoms and causes - Mayo Clinic\" https://www.mayoclinic.org/diseases-conditions/fever/symptoms-causes/syc-20352759"
+}

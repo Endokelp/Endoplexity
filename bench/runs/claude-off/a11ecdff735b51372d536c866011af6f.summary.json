@@ -1,0 +1,25 @@
+{
+  "model": "claude-sonnet-5-5",
+  "start": "https://www.coursera.org/",
+  "wall": 49258,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 6,
+  "tool_turns": 5,
+  "tool_calls": 5,
+  "input_tokens": 12,
+  "cache_read": 83850,
+  "cache_write": 12130,
+  "output_tokens": 1002,
+  "cost_usd": 0.134885,
+  "screenshots": 0,
+  "sequence": [
+    "ToolSearch",
+    "mcp__endo__find",
+    "mcp__endo__type",
+    "mcp__endo__key",
+    "mcp__endo__navigate"
+  ],
+  "answer": "I searched Coursera for \"Psychology\" and found a range of courses. These are the first results:\n\n**Courses**\n- Introduction to Psychology (Yale University)\n- Introduction to Cognitive Psychology and Neuropsychology (University of Cambridge)\n- Positive Psychology: Resilience Skills (University of Pennsylvania)\n- Psychology of the Self (American Psychological Association)\n- Psychological First Aid (Johns Hopkins University)\n- Understanding child development: from synapse to society (Utrecht University)\n- Managing ADHD, Autism, Learning Disabilities, and Concussion in School (University of Colorado System)\n\n**Specializations**\n- The science of mind and decision making (University of Cambridge)\n- Psychology of Anxiety, Mood, Substance Use, and Addictive Behaviors (American Psychological Association)\n- Psychology of Disorders Related to Trauma, Anxiety, & Stress (American Psychological Association)\n- Foundations of Positive Psychology (University of Pennsylvania)\n- General Psychology (Pearson)\n\nThe results page also has filters for topic, duration, learning product, language and level. It suggests related searches such as clinical, counseling, developmental, behavioral, educational and criminal psychology.\n\nThe page is at https://www.coursera.org/search?query=Psychology. I can narrow it by level or subtopic, or open any of these for details.",
+  "final_tabs": "* id 914606257 — \"Coursera | Online Courses From Top Universities. Join for Free\" https://www.coursera.org/search?query=Psychology"
+}

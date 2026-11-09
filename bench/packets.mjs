@@ -28,7 +28,7 @@ function trail(file) {
     }
     for (const [name, input] of calls) {
       const verb = String(name).replace(/^mcp__[^_]+(?:-[^_]+)*__/, "");
-      if (/ToolSearch|getMcpTools/.test(verb)) continue;
+      if (/ToolSearch|getMcpTools|select_browser/.test(verb)) continue;
       lines.push(`- ${verb} ${JSON.stringify(input ?? {}).slice(0, 220)}`);
     }
   }

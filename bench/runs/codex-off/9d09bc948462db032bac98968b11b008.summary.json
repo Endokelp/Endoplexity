@@ -1,0 +1,32 @@
+{
+  "model": "gpt-6.1-sol",
+  "start": "https://www.stubhub.com/",
+  "start_error": null,
+  "wall": 32363,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 11,
+  "tool_turns": 10,
+  "tool_calls": 11,
+  "input_tokens": 27441,
+  "cache_read": 157312,
+  "cache_write": 0,
+  "output_tokens": 467,
+  "cost_usd": null,
+  "screenshots": 0,
+  "sequence": [
+    "mcp__endo__snapshot",
+    "mcp__endo__type",
+    "mcp__endo__key",
+    "mcp__endo__click",
+    "mcp__endo__click",
+    "mcp__endo__type",
+    "mcp__endo__find",
+    "mcp__endo__find",
+    "mcp__endo__key",
+    "mcp__endo__click",
+    "mcp__endo__key"
+  ],
+  "answer": "Found 33 NHL events near Boston. Upcoming games at TD Garden include:\n\n| Date | Matchup | Time |\n|---|---|---|\n| Nov 12 | Canadiens at Bruins | 7:00 PM |\n| Nov 14 | Wild at Bruins | 7:00 PM |\n| Nov 17 | Kings at Bruins | 7:00 PM |\n| Nov 21 | Capitals at Bruins | 7:00 PM |\n| Nov 25 | Jets at Bruins | 7:00 PM |\n\nThe page is set to NHL events near Boston.",
+  "final_tabs": "* id 1702767520 — \"NHL Tickets - StubHub\" https://www.stubhub.com/nhl-tickets/grouping/144?agqi=9a59178d-c510-4c8f-aacd-335bb6e95c3a&agi=stubhub-v2&agut=1abdd8b6-f740-4345-8be5-a346cdc2808b&dates=0%2Cnull%2Cnull"
+}

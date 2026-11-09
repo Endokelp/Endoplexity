@@ -1,0 +1,27 @@
+{
+  "model": "cic:claude-sonnet-5-5",
+  "start": "https://www.verizon.com/",
+  "wall": 35746,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 8,
+  "tool_turns": 7,
+  "tool_calls": 7,
+  "input_tokens": 18,
+  "cache_read": 135807,
+  "cache_write": 16982,
+  "output_tokens": 1391,
+  "cost_usd": 0.19196140000000003,
+  "screenshots": 1,
+  "sequence": [
+    "ToolSearch",
+    "mcp__claude-in-chrome__select_browser",
+    "mcp__claude-in-chrome__tabs_context_mcp",
+    "mcp__claude-in-chrome__navigate",
+    "ToolSearch",
+    "mcp__claude-in-chrome__browser_batch",
+    "mcp__claude-in-chrome__get_page_text"
+  ],
+  "answer": "Four Verizon Prepaid Unlimited lines without Auto Pay come to **$180/mo**, plus taxes and fees.\n\n- **Per line:** the Unlimited plan is $60/mo without Auto Pay. It's listed as $50/mo with Auto Pay, which is the $10 discount.\n- **Multiline discount:** each additional line gets $20 off, so lines 2 through 4 are $40 each.\n- **Total:** $60 + 3 × $40 = $180/mo.\n\nVerizon's prepaid plans page states the same figure: \"Without Auto Pay, 4 lines with Multiline discount comes to a total of $180/mo.\" With Auto Pay the total is $140/mo.\n\nI read this from the plans page text and didn't run the 4-line selector or go through checkout. For the pricier Unlimited Plus plan ($70/mo per line without Auto Pay), the same math gives $220/mo.",
+  "final_tabs": "* id 0 — \"Verizon Prepaid Phone Plans | 15 GB of Data and Unlimited | Verizon Prepaid\" https://www.verizon.com/prepaid/plans/phone-plans/"
+}

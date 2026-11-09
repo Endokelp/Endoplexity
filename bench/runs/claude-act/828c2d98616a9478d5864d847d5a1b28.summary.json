@@ -1,0 +1,27 @@
+{
+  "model": "claude-sonnet-5-5",
+  "start": "https://www.justice.gov/",
+  "start_error": null,
+  "wall": 19324,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 7,
+  "tool_turns": 6,
+  "tool_calls": 6,
+  "input_tokens": 16,
+  "cache_read": 122575,
+  "cache_write": 11558,
+  "output_tokens": 1445,
+  "cost_usd": 0.146927,
+  "screenshots": 0,
+  "sequence": [
+    "ToolSearch",
+    "mcp__endo__find",
+    "mcp__endo__navigate",
+    "mcp__endo__navigate",
+    "mcp__endo__click",
+    "mcp__endo__click"
+  ],
+  "answer": "I'm on the Civil Division's \"Documents and Forms\" page (Civil Division > Public Documents). The forms and documents on it are grouped as follows.\n\n**General forms**\n- Standard Form 95 (this link goes to an external site)\n- FMS 194, FMS 196 and FMS 197\n\n**Commercial Litigation**\n- Fraud Section: The False Claims Act: A Primer, and False Claims Act Statistics.\n- Corporate / Financial Litigation Section:\n  - At a Glance: DOJ's New Process for Student Loan Bankruptcy Discharge Cases\n  - Guidance for Department Attorneys Regarding Student Loan Bankruptcy Litigation\n  - Appendix A: Attestation Form\n  - Appendix B: Sample Scenario\n- Intellectual Property Section: statute references (28 U.S.C. § 1498, 35 U.S.C. § 271(a), 22 U.S.C. § 2356, 19 U.S.C. § 1337, 42 U.S.C. § 2223, 35 U.S.C. § 183) and the Trademark Amendments Act of 1999.\n- National Courts Section: Appellate Practice and Trial Practice.\n- Office of Foreign Litigation\n\n**Enforcement & Affirmative Litigation Branch**\n- The page lists no items under this heading.\n\n**Office of Immigration Litigation**\n- The page lists no items under this heading.\n\n**Torts Branch**\n- Constitutional & Specialized Tort Litigation Section (Radiation Exposure Compensation Act, \"RECA\"):\n  - RECA Claimant Categories Summary\n  - Onsite Participant Claim Form\n  - Downwinder Claim Form\n  - Uranium Mine Employee Claim Form\n  - Ore Transporter Claim Form\n  - Uranium Mill Employee Claim Form\n  - 28 C.F.R. §§ 50.15 and 50.16\n- Federal Tort Claims Act Litigation Section: Annuity Broker Declaration and Standard Form 95.\n- The Aviation, Space and Admiralty, and Environmental Tort Litigation sections have headings but no listed forms.\n\nThe page also links to Civil Division Enforcement Priorities. I can open any of these forms or sections if you want.",
+  "final_tabs": "* id 1384379368 — \"Civil Division | Documents and Forms\" https://www.justice.gov/civil/documents-and-forms-0"
+}

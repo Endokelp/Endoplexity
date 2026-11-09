@@ -1,0 +1,714 @@
+{
+ "8bb2fb3c98": {
+  "verdict": "success",
+  "reason": "The final page is the Coursera search results for Psychology listing courses such as Foundations of Positive Psychology and Abnormal Psychology, matching the agent's answer.",
+  "blocked": false
+ },
+ "6db9824f1b": {
+  "verdict": "failure",
+  "reason": "The Weather Network never loaded for the agent and its answer gives no wind speed, so the task was not done.",
+  "blocked": false,
+  "solo": true
+ },
+ "6cabfa2beb": {
+  "verdict": "success",
+  "reason": "The final GameStop search page for PlayStation 5 digital edition lists Sony PlayStation 5 Digital Edition Console at $549.99 and the Slim Digital Edition at $549.99, matching the answer, on gamestop.com as the task requires.",
+  "blocked": false
+ },
+ "ef79311378": {
+  "verdict": "success",
+  "reason": "The last page is Petfinder's Seattle cat search with age=young and Sort By 'Newest Addition' applied, listing the cats the answer shows (Abby first).",
+  "blocked": false,
+  "solo": true
+ },
+ "a989276ebf": {
+  "verdict": "success",
+  "reason": "The final Airbnb page shows Homes in Cleveland, Nov 9-12 (3 nights), 4 guests plus a pets=1 URL parameter and Allows pets chip, $100-$300 per night, and Gym, Free parking and Washer chips with a Filters badge of 5, returning 22 homes that match the answer's listings and prices.",
+  "blocked": false
+ },
+ "23ee1fc022": {
+  "verdict": "success",
+  "reason": "The last page is Cookpad's eggplant-mushroom search showing 'Teriyaki Eggplant & Mushroom Don' with Asian eggplant and shiitake mushrooms among its ingredients, as the answer says.",
+  "blocked": false,
+  "solo": true
+ },
+ "00a26b8428": {
+  "verdict": "success",
+  "reason": "Final page is ign.com/editors-choice filtered to the Board genre, listing Undaunted: Stalingrad Board Game Review with a 10 (screenshot hero shows the 10 badge) while the other board reviews are 9s, matching the answer.",
+  "blocked": false
+ },
+ "36eae1c63f": {
+  "verdict": "success",
+  "reason": "The last page is Slay the Spire 2's reviews with 'Playtime: Over 100 hours' and 'Played Mostly on Steam Deck' applied, after the agent opened the Steam Deck top-played chart, and the answer's reviewers (Aurelian first) match.",
+  "blocked": false,
+  "solo": true
+ },
+ "152485ec0f": {
+  "verdict": "success",
+  "reason": "Verizon Prepaid plans page text in the packet states Without Auto Pay, 4 lines with Multiline discount comes to a total of $180/mo, matching the answer's $180/mo for four Unlimited lines without Auto Pay.",
+  "blocked": false
+ },
+ "24d244b336": {
+  "verdict": "success",
+  "reason": "The final StubHub page shows the Boston location filter with '33 events at TD Garden - Boston', each listed at TD Garden, Boston, matching the answer's 33 home games.",
+  "blocked": false
+ },
+ "ccee0462d9": {
+  "verdict": "success",
+  "reason": "The answer computes $1,800 (30% of $6,000) and the last page is Apartments.com's 90012 search filtered to under $1,800, with the listings the answer gives.",
+  "blocked": false,
+  "solo": true
+ },
+ "05bf2e5d0a": {
+  "verdict": "failure",
+  "reason": "The agent set up the $100 birthday e-gift card but stopped for recipient details and nothing was added to the cart, so key point 1 is unmet.",
+  "blocked": false,
+  "solo": true
+ },
+ "5ec86eeab8": {
+  "verdict": "failure",
+  "reason": "No gluten-free filter or gluten-free product was found or applied; the answer itself says none could be confirmed, so key point 3 is unmet.",
+  "blocked": false,
+  "solo": true
+ },
+ "8a84e7580c": {
+  "verdict": "success",
+  "reason": "The final AKC event-search page shows O/SO/PO/LO, NY and 05/01/27 - 05/31/27 applied, with the Mohawk River and Albany trials the answer lists.",
+  "blocked": false
+ },
+ "c0a3d001a0": {
+  "verdict": "success",
+  "reason": "The agent opened nfl.com/standings, clicked the AFC East leader, and the last screenshot is the Buffalo Bills team page showing '1st AFC East, 6-1-0'.",
+  "blocked": false,
+  "solo": true
+ },
+ "fb584e076b": {
+  "verdict": "failure",
+  "reason": "The agent admits it could not obtain any Access Point name or services; the final page shows the UPS locator with \"No Results Found\" and only unlabeled map pins, so the services key point is unmet.",
+  "blocked": false
+ },
+ "bd0a23de0d": {
+  "verdict": "success",
+  "reason": "NBA.com's BLK totals for 2026-27, in the agent's own screenshot before a cookie overlay covered it, list Victor Wembanyama first with 39 blocks, as the answer says.",
+  "blocked": false,
+  "solo": true
+ },
+ "a794d980a2": {
+  "verdict": "success",
+  "reason": "The CarMax results show Honda and Nissan selected, location 49512 Grand Rapids (Kentwood), and multiple vehicles available for a test drive there today.",
+  "blocked": false
+ },
+ "b6a1ca71ee": {
+  "verdict": "success",
+  "reason": "The last page is Drugs.com's interaction report for melatonin and Folate Forte, and the answer reports its result.",
+  "blocked": false,
+  "solo": true
+ },
+ "5704eac643": {
+  "verdict": "failure",
+  "reason": "blocked",
+  "blocked": false
+ },
+ "f155942b1d": {
+  "verdict": "success",
+  "reason": "The run ended on foxsports.com/soccer/mls/standings and the answer's rows (Nashville 77, Vancouver 64) match the page text.",
+  "blocked": false
+ },
+ "4e74fba454": {
+  "verdict": "success",
+  "reason": "The screenshot shows United's interactive destination map with Las Vegas LAS, Roundtrip and Flexible dates set, and the fares the answer lists (ABQ $209, DFW $212).",
+  "blocked": false,
+  "solo": true
+ },
+ "17d770ed2b": {
+  "verdict": "success",
+  "reason": "Stanford ExploreCourses has CHEM, Graduate, Winter 2022-2023, Monday and afternoon filters in the final URL and shows CHEM 300 meeting Mondays 3:00-4:20 PM in winter 2023.",
+  "blocked": false
+ },
+ "ab5495eef1": {
+  "verdict": "success",
+  "reason": "The last page is the Civil Division's Documents and Forms page on justice.gov, whose forms (Standard Form 95 and the rest) the answer browses.",
+  "blocked": false,
+  "solo": true
+ },
+ "33c10a4cd4": {
+  "verdict": "success",
+  "reason": "The final comparison page displays a 2017-2024 line chart of female civilian workforce unemployment with Illinois and Michigan as the two series.",
+  "blocked": false
+ },
+ "9fc3e86a47": {
+  "verdict": "success",
+  "reason": "The last page is arXiv's advanced search for reinforcement learning in computer science and mathematics, submitted 2024-09-01 to 2025-01-31, as the URL and page show.",
+  "blocked": false,
+  "solo": true
+ },
+ "41bcae21fb": {
+  "verdict": "success",
+  "reason": "The final screenshot shows AccuWeathers \"Brazil Current Wind Speeds\" map on the Wind tab centered on Belo Horizonte with the header location set to Belo Horizonte, Minas Gerais, which is the sites wind map for that city.",
+  "blocked": false
+ },
+ "8b12ed7795": {
+  "verdict": "success",
+  "reason": "The checkout screenshot shows pickup at KFC 408 8th Avenue, New York 10001 on November 9th, 2026 at 12:00 PM with one item, $16.65, the same end state judged a success for another run of this task.",
+  "blocked": false,
+  "solo": true
+ },
+ "84ee9291a7": {
+  "verdict": "success",
+  "reason": "The screenshot and page text show the YC directory with Is Hiring, Winter/Summer 2022, Winter/Summer 2023 and HQ Region: France applied, listing 6 of 6 companies, and the answer lists exactly those six with matching batches and Paris locations.",
+  "blocked": false
+ },
+ "46ba7080a4": {
+  "verdict": "success",
+  "reason": "The last page is Mayo Clinic's Fever symptoms and causes page, and the answer gives both from it.",
+  "blocked": false,
+  "solo": true
+ },
+ "76e854b05a": {
+  "verdict": "success",
+  "reason": "Final page is coursera.org/search?query=Psychology showing Results for Psychology with psychology courses/specializations, matching the answer's list.",
+  "blocked": false
+ },
+ "ed9ed10a3f": {
+  "verdict": "failure",
+  "reason": "The page is correctly Calgary AB current weather (updated 5 minutes ago, wind warning), but neither the screenshot nor the captured page text shows any wind speed value, so the claimed 7 km/h south with 11 km/h gusts is not supported by the evidence.",
+  "blocked": false
+ },
+ "b39437bdd4": {
+  "verdict": "success",
+  "reason": "Final page is GameStop search results for \"playstation 5 digital edition\" (11 items, Consoles & Hardware) showing PS5 Digital Edition consoles, matching the answer's list.",
+  "blocked": false
+ },
+ "6084a7e738": {
+  "verdict": "success",
+  "reason": "Screenshot shows Petfinder Cats, Location Seattle WA, Young filter chip applied and Sort By Newest Addition with 793 results and listings displayed, matching all key points.",
+  "blocked": false
+ },
+ "ba61c1f562": {
+  "verdict": "success",
+  "reason": "The listing page is a Cleveland Ohio entire rental showing $377 for 3 nights (about $126/night), with the booking widget set to Nov 9 to Nov 12 (page calendar marks Nov 7 as today) for 4 guests and 1 pet, opened from a search filtered by price 100-300 and the parking, washer and gym amenity filters, and the page advertises free garage parking.",
+  "blocked": false
+ },
+ "badb900209": {
+  "verdict": "success",
+  "reason": "Final page is the Cookpad recipe 'Teriyaki Eggplant & Mushroom Don' whose ingredients list shows 2-3 Asian eggplant and 8-9 shiitake mushrooms.",
+  "blocked": false
+ },
+ "318de12a4e": {
+  "verdict": "success",
+  "reason": "Action list shows the reviews listing filtered with Board genre and score 10 (plus a toggle click for Editors' Choice) and ends on the Undaunted: Stalingrad Board Game Review in IGN Tabletop; the score badge is not visible on the review page itself, which the agent disclosed.",
+  "blocked": false
+ },
+ "bb7b734950": {
+  "verdict": "success",
+  "reason": "The agent's actions select the Steam Deck top-played list for the past year and open Slay the Spire 2, and the final store page shows the Playtime filter set to Over 100 hours and Played mostly on Steam Deck with 341 matching reviews, with the Aurelian 269.2 hrs review matching the answer.",
+  "blocked": false
+ },
+ "5beb0eb6b5": {
+  "verdict": "success",
+  "reason": "Screenshot shows the Verizon Prepaid Auto Pay toggle Off, page text lists Unlimited at $180 (matching the answer), and the $40 gap to $140 with Auto Pay equals $10 x 4 lines, consistent with the three line increments in the actions.",
+  "blocked": false
+ },
+ "6e65cdfd75": {
+  "verdict": "failure",
+  "reason": "Only a 'Boston Bruins' search was run; no Boston location filter was applied (the results include Bruins away games in New York and Seattle), so key point 2 is described in the answer, not done.",
+  "blocked": false,
+  "tiebreak": true
+ },
+ "b9c91e2c66": {
+  "verdict": "success",
+  "reason": "The agent computed 30% of $6,000 as $1,800 and the final Apartments.com page shows the 90012 search with the under-$1.8k price filter applied and 14 rentals, with the listings (Ferrante $1,799+, Promenade Towers $1,471+/$1,733+) matching its answer.",
+  "blocked": false
+ },
+ "25b47b5741": {
+  "verdict": "failure",
+  "reason": "Cart (screenshot and page text) holds one Best Buy $100 Celebrate Balloons Gift Card, but nothing shows a Birthday occasion and the agent itself says the card is not tagged Birthday, so that key point is not met and the packet gives no evidence the site lacks a birthday-themed Best Buy card.",
+  "blocked": false
+ },
+ "655da574bf": {
+  "verdict": "failure",
+  "reason": "Agent states it could not confirm gluten-free for any product and applied no brand, gluten-free, price or review-count filter; the end page is a single product page that makes no gluten-free claim.",
+  "blocked": false
+ },
+ "52a60f4089": {
+  "verdict": "failure",
+  "reason": "The agent admits the AKC search never ran (Retrieve Events returned nothing, no event type selected), and the final page is the unsubmitted Event Search form with 05/2027 dates and no obedience trial results.",
+  "blocked": false
+ },
+ "0761671a99": {
+  "verdict": "success",
+  "reason": "Agent opened NFL.com division standings, identified Buffalo Bills first in AFC East, and ended on nfl.com/teams/buffalo-bills whose header reads 1st AFC East 6-1-0 (consistent with the ticker records).",
+  "blocked": false
+ },
+ "82e9b27390": {
+  "verdict": "failure",
+  "reason": "The agent reported no Access Point or services found; the final screenshot shows the UPS Find a UPS Location panel with 77388 entered and no result cards, so neither a location near Spring TX nor its services was shown.",
+  "blocked": false
+ },
+ "eb43e23708": {
+  "verdict": "success",
+  "reason": "The final NBA.com Season Leaders page is set to 2026-27, Regular Season, Totals, BLK and its first row is Victor Wembanyama (SAS) followed by Myles Turner, matching the answer that names Wembanyama as the current blocks leader.",
+  "blocked": false
+ },
+ "8ae6ad82d8": {
+  "verdict": "success",
+  "reason": "Screenshot shows carmax.com 'Used Honda and Nissan for sale' (14,720 matches, 2 filters) with 'Your store for 49512: Grand Rapids (Kentwood)' in the header and Honda and Nissan listings.",
+  "blocked": false
+ },
+ "fa2a1c3393": {
+  "verdict": "success",
+  "reason": "Final page is the drugs.com 'Drug Interaction Report: Folate Forte, melatonin' (Major/Moderate/Minor 0, Food/lifestyle 1, Disease 4), matching the agent's answer.",
+  "blocked": false
+ },
+ "df5f3f6387": {
+  "verdict": "success",
+  "reason": "Screenshot shows OSU Class Search (Course Catalog & Master Schedule) with active filters Subject: Computer Science & Engineering and Academic Career: Graduate (plus an extra Lecture filter), listing 99 graduate CSE sections.",
+  "blocked": false
+ },
+ "25923ea354": {
+  "verdict": "failure",
+  "reason": "The agent reached the Fox Sports MLS standings page, but its final answer contradicts the page text: it gives Real Salt Lake 11-11-12 and GD -7 where the page shows 13-6-15 and +1, omits the Minnesota and LA Galaxy rows that the page lists, and so misnumbers the rest of the Western table.",
+  "blocked": false
+ },
+ "dc6154db2a": {
+  "verdict": "success",
+  "reason": "Screenshot of united.com Explore destinations interactive map shows Flying from Las Vegas LAS, Search type Roundtrip, Dates Flexible dates, with a populated results list (Albuquerque from $209, etc.) and map.",
+  "blocked": false
+ },
+ "385a103f79": {
+  "verdict": "success",
+  "reason": "Final page shows ExploreCourses 2022-2023 with Winter, afternoon, Monday and Graduate filters checked for CHEM, listing CHEM 300 meeting Mon 3:00-4:20 PM in Winter 2022-23.",
+  "blocked": false
+ },
+ "668db17d1d": {
+  "verdict": "success",
+  "reason": "The agent ended on the justice.gov Civil Division Documents and Forms page, whose text lists SF 95, FMS 194/196/197, Appendix A Attestation Form and the RECA claim forms exactly as the answer summarizes.",
+  "blocked": false
+ },
+ "7137f7cf78": {
+  "verdict": "success",
+  "reason": "The final page is americashealthrankings.org State Comparison at /explore/measures/unemployment_women/IL/compare/MI, and the screenshot and page text show Illinois and Michigan selected with the Unemployment - Women Trends figure and its chart grid beginning on the page.",
+  "blocked": false
+ },
+ "548ee2236e": {
+  "verdict": "success",
+  "reason": "Final arXiv advanced-search page shows abstract=\"reinforcement learning\", Computer Science and Mathematics classifications, date range 2024-09-01 to 2025-01-31 (first submission date), 2,219 results, with the top result submitted 18 January 2025.",
+  "blocked": false
+ },
+ "297f03e40a": {
+  "verdict": "failure",
+  "reason": "No wind flow map is shown: the agent says it did not find one and ended on the Belo Horizonte radar page whose More Maps list shows only Clouds, Temperature, Lightning and Air Quality, without evidence that the site lacks a wind map elsewhere.",
+  "blocked": false
+ },
+ "d91e21fa04": {
+  "verdict": "failure",
+  "reason": "Checkout screenshot shows pick-up set for November 8th, 2026 at 12:00 PM, which is today on the run date (other pages in the same run window mark Nov 8 as Today), not tomorrow as the task requires, and the combo options are not verifiable from the final state.",
+  "blocked": false
+ },
+ "90c5ed0652": {
+  "verdict": "success",
+  "reason": "The YC directory screenshot shows chips Is Hiring, Winter 2022, Summer 2022, Winter 2023, Summer 2023 and HQ Region: France with Showing 6 of 6 companies, matching the six companies in the answer.",
+  "blocked": false
+ },
+ "a19febe818": {
+  "verdict": "success",
+  "reason": "Agent navigated to the Mayo Clinic Fever Symptoms and causes page (screenshot shows it) and the final answer lists symptoms and causes consistent with that page's Symptoms and Causes sections.",
+  "blocked": false
+ },
+ "dafb89c30c": {
+  "verdict": "success",
+  "reason": "Final page is Coursera search results for Psychology with psychology courses listed (screenshot and page text), and the answer lists them accurately.",
+  "blocked": false
+ },
+ "711f9100a5": {
+  "verdict": "success",
+  "reason": "Ended on The Weather Network Calgary, AB Current page (screenshot: Updated 9 minutes ago, Yellow Warning - Wind, Tomorrow is expected to be windy), all matching the answer; the 7 km/h figure itself is not visible in the capture but nothing contradicts it.",
+  "blocked": false
+ },
+ "cf3636c8ed": {
+  "verdict": "success",
+  "reason": "The agent ended on the GameStop product page titled Sony PlayStation 5 Digital Edition Console (screenshot shows the title, $549.99 and Add to Cart), which is exactly the item the task asks to find on gamestop.com.",
+  "blocked": false
+ },
+ "f13b56b5da": {
+  "verdict": "success",
+  "reason": "Final page and screenshot show Cats, Seattle WA, Young filter chip applied, Sort By Newest Addition, with results listed in the answer.",
+  "blocked": false
+ },
+ "051cee3f8a": {
+  "verdict": "success",
+  "reason": "Screenshot and page text show Airbnb 'Homes in Cleveland', Nov 9-12 (3 nights), 4 guests with pets=1 in the URL, $100-$300 per night, and Gym, Washer, Free parking and Allows pets applied (5 filters, 22 homes), with the agent's check-in date taken as the day after tomorrow.",
+  "blocked": false
+ },
+ "591fb3fad5": {
+  "verdict": "success",
+  "reason": "The final page is the Cookpad recipe Teriyaki Eggplant & Mushroom Don whose visible ingredient list starts with Asian eggplant and shiitake mushrooms.",
+  "blocked": false
+ },
+ "c78c7e5fe5": {
+  "verdict": "failure",
+  "reason": "Board genre and Score 10 filters were applied, but the agent says its Editors' Choice click did not register, and neither the final page text nor the screenshot (top of the Undaunted: Stalingrad review) shows a 10 score or an Editors' Choice badge, so that key point is only asserted in the answer.",
+  "blocked": false
+ },
+ "cd8fe9e93b": {
+  "verdict": "success",
+  "reason": "Screenshot shows Slay the Spire 2 reviews with Playtime 'Over 100 hours' and 'Played mostly on Steam Deck' selected, 'Showing 341 reviews' and Aurelian's review first, matching the answer; actions show the Steam Deck most-played list set to 'past year' and its top game opened.",
+  "blocked": false
+ },
+ "32d1b87dd3": {
+  "verdict": "success",
+  "reason": "Information task: the final page shows 4 lines with Unlimited at $140/mo with Auto Pay and the heading \"Enroll in Auto Pay to save $10/mo per line\", so the answer of $180/mo ($140 + 4 x $10) without Auto Pay is supported by the page, and the agent disclosed it was computed because the checkbox would not toggle.",
+  "blocked": false
+ },
+ "1e253c196c": {
+  "verdict": "failure",
+  "reason": "The end page shows a Boston Bruins text search with the location filter still at \"All locations\" and away games mixed in; the Boston filter was never applied, and the answer covers only the first 18 of 67 events (See more not clicked), so the list is admittedly incomplete.",
+  "blocked": false
+ },
+ "9b4f797525": {
+  "verdict": "success",
+  "reason": "The agent computed $6000 x 30% = $1,800 and the screenshot shows Apartments.com for 90012 with the < $1.8k price filter and 14 rentals, with visible listings (Ferrante $1,799+, 255 Grand $1,686+) matching the answer.",
+  "blocked": false
+ },
+ "c856705df3": {
+  "verdict": "failure",
+  "reason": "The cart does hold one Best Buy $100 Celebrate Balloons Gift Card, but nothing in the cart or pages ties it to a birthday occasion and the agent itself says no Best Buy card was tagged birthday, so that key point is unmet and unverified.",
+  "blocked": false
+ },
+ "588b1f416f": {
+  "verdict": "failure",
+  "reason": "Final page is an unrelated $16.99 CVS Women's Formula caplets product page; the agent never applied a gluten-free or under-$15 filter on the site, admitted it could not confirm gluten-free for the others, and its pick has a $8.99-$18.19 price range.",
+  "blocked": false
+ },
+ "d502c6a772": {
+  "verdict": "failure",
+  "reason": "The screenshot shows the AKC event search with NY set but the error \"Choose at least one event type\" and no obedience or Companion event type selected; no trial results were ever shown and the agent says it found none.",
+  "blocked": false
+ },
+ "9d7ea4270f": {
+  "verdict": "success",
+  "reason": "Agent ended on nfl.com/teams/buffalo-bills whose screenshot header reads '1st AFC East 6-1-0', matching its standings-page evidence (Bills 6-1 ahead of Patriots 5-3).",
+  "blocked": false
+ },
+ "e3959eeceb": {
+  "verdict": "failure",
+  "reason": "Agent admits it could not find any UPS Access Point near Spring, TX; the final page is theupsstore.com's list of UPS Store locations (a different site), and nothing in the packet shows these are Access Points or that the ups.com finder had no results.",
+  "blocked": false
+ },
+ "58d0816b71": {
+  "verdict": "success",
+  "reason": "Final page is NBA.com Season Leaders with Season 2026-27, Regular Season, Per Mode Totals, Stat Category BLK selected, and the first row is Victor Wembanyama (SAS) followed by Myles Turner, matching the answer's leader (exact block counts not visible in the packet).",
+  "blocked": false
+ },
+ "2e49370b27": {
+  "verdict": "success",
+  "reason": "Final page carmax.com/cars/honda/nissan is titled 'Used Honda and Nissan for sale' (14,721 matches, 2 filters) with listings tagged Grand Rapids (Kentwood), the store the agent set for ZIP 49512.",
+  "blocked": false
+ },
+ "bd6804d42e": {
+  "verdict": "success",
+  "reason": "Final page is the drugs.com 'Drug Interaction Report: Folate Forte, melatonin' (0 drug interactions, 1 food/lifestyle, 4 disease) and the screenshot shows the smoking/caffeine/alcohol text and disease list the answer reports.",
+  "blocked": false
+ },
+ "58d28e30c3": {
+  "verdict": "success",
+  "reason": "Screenshot shows the OSU Class Search with active filters Academic Career: Graduate and Subject: Computer Science & Engineering (plus Spring 2027, Columbus, Lecture) and 75 graduate CSE section results listed.",
+  "blocked": false
+ },
+ "795e6d590d": {
+  "verdict": "success",
+  "reason": "Agent ended on foxsports.com/soccer/mls/standings (2026 LIVE STANDINGS, MLS, Eastern Conference visible in screenshot) and its table matches the page text, apart from one peripheral GD cell (Vancouver +34 vs page's 40).",
+  "blocked": false
+ },
+ "090550f1e6": {
+  "verdict": "success",
+  "reason": "The screenshot and page text show united.com Explore destinations (interactive map) with Flying from Las Vegas LAS, Roundtrip, Flexible dates and the results list (ABQ $209 etc.) matching the agent's table.",
+  "blocked": false
+ },
+ "bf63d34ceb": {
+  "verdict": "success",
+  "reason": "The final Stanford ExploreCourses page for 2022-2023 shows Winter, afternoon (2pm-5pm), Monday and Graduate filters checked with the CHEM subject, returning CHEM 300 on Mon 3:00-4:20 PM from 01/09/2023, matching the answer.",
+  "blocked": false
+ },
+ "fb99d2e82a": {
+  "verdict": "success",
+  "reason": "The agent ended on the justice.gov Civil Division Documents and Forms page, whose text lists the Commercial Litigation and Torts Branch forms (Standard Form 95, FMS 194/196/197, RECA claim forms) matching its summary.",
+  "blocked": false
+ },
+ "5fbd90874d": {
+  "verdict": "success",
+  "reason": "Final page is americashealthrankings.org/explore/measures/unemployment_women/IL/compare/MI, titled State Comparison with Illinois and Michigan selected and an 'Unemployment - Women Trends' chart section (chart grid beginning) displayed.",
+  "blocked": false
+ },
+ "6295603965": {
+  "verdict": "success",
+  "reason": "Screenshot shows arXiv results (2,381) whose query line reads all=reinforcement learning, classification Computer Science and Mathematics, date_range 2024-09-01 to 2025-01-31.",
+  "blocked": false
+ },
+ "e5372467d0": {
+  "verdict": "failure",
+  "reason": "The final page is AccuWeather's national Brazil wind map, viewed on Colombia and Venezuela; the map can zoom but was never moved to Belo Horizonte, so the target-location key point is not met.",
+  "blocked": false,
+  "tiebreak": true
+ },
+ "ae0910c7db": {
+  "verdict": "failure",
+  "reason": "Checkout screenshot shows pick-up on November 8th, 2026 at 12:00 PM, which other pages from the same run window mark as today rather than tomorrow, and the side, drink and sauce choices are not visible in the end state (only 1 ITEM, $15.29), so they rest on the answer alone.",
+  "blocked": false
+ },
+ "2b76ad08b0": {
+  "verdict": "success",
+  "reason": "Screenshot shows the YC directory with Is Hiring, Winter/Summer 2022, Winter/Summer 2023 and HQ Region France all applied, Showing 6 of 6 companies, matching the six listed in the answer.",
+  "blocked": false
+ },
+ "a9bcaa2ae0": {
+  "verdict": "success",
+  "reason": "Agent opened the Mayo Clinic Fever Symptoms and causes page (screenshot confirms the page and its Symptoms/Causes sections) and its answer covers both symptoms and causes consistent with that article.",
+  "blocked": false
+ },
+ "89dc88ef5d": {
+  "verdict": "success",
+  "reason": "The final Coursera page is the search for Psychology with the Courses filter active (URL productTypeDescription=Courses) and lists psychology courses that match the answer.",
+  "blocked": false
+ },
+ "663a3b13d2": {
+  "verdict": "failure",
+  "reason": "The final Calgary current-weather page shows no wind speed in its text or screenshot, so the answer's 7 km/h (gusts 11 km/h) is not supported by the evidence (JUDGE.md rule 2).",
+  "blocked": false,
+  "tiebreak": true
+ },
+ "61dbbb05f0": {
+  "verdict": "success",
+  "reason": "The final page is the gamestop.com product page for Sony PlayStation 5 Digital Edition Console, matching the task and site.",
+  "blocked": false
+ },
+ "a81fdbc2b4": {
+  "verdict": "failure",
+  "reason": "The agent's own answer says the browser connection dropped before Seattle, Young age or newest sort were set, and no final page or screenshot exists.",
+  "blocked": false
+ },
+ "4c89b229f7": {
+  "verdict": "success",
+  "reason": "The Airbnb listing page shows Cleveland, Nov 10-13 (day after today Nov 8) for 3 nights, $424 total (about $141/night), with URL params adults=2, children=2, pets=1, price 100-300 and amenity filters for parking, washer and gym.",
+  "blocked": false
+ },
+ "fdf1e5f011": {
+  "verdict": "success",
+  "reason": "Final Cookpad page is the recipe 'Teriyaki Eggplant & Mushroom Don' whose ingredient list shows Asian eggplant and shiitake mushrooms, 3 servings and 45 mins, matching the answer.",
+  "blocked": false
+ },
+ "b2cb2ea754": {
+  "verdict": "success",
+  "reason": "Actions applied the IGN review filters score 10 and Board category, and the final page is the IGN Undaunted: Stalingrad Board Game Review (Reviews > Tabletop, tagged board game) matching the answer, though the score and Editors' Choice badge are not visible in the captured text.",
+  "blocked": false
+ },
+ "45589daec6": {
+  "verdict": "success",
+  "reason": "Final Steam page is Slay the Spire 2's reviews with the 'Over 100 hours' and 'Played mostly on Steam Deck' radios checked, a Playtime filter chip and 341 matching reviews (Deck icons on reviews), and the agent's example reviews match the page text; the top-played pick came from the Deck list with 'past year' selected in the action list.",
+  "blocked": false
+ },
+ "1d444e9d02": {
+  "verdict": "success",
+  "reason": "The final Verizon prepaid page shows a $180 price beside the $140 Auto Pay price and states Auto Pay saves $10/mo per line, so the answer of $180 for four lines without Auto Pay agrees with the page.",
+  "blocked": false,
+  "tiebreak": true
+ },
+ "6fac6c65d8": {
+  "verdict": "success",
+  "reason": "StubHub NHL page shows the Boston location filter applied and '33 events near you', with listed games at Boston, MA TD Garden matching the answer.",
+  "blocked": false
+ },
+ "50e5ed02ea": {
+  "verdict": "success",
+  "reason": "The answer computes $6,000 x 30% = $1,800 and the final apartments.com page is 'Apartments under $1,800 in 90012' with the < $1.8k price filter and 13 rentals available.",
+  "blocked": false
+ },
+ "798c35c44d": {
+  "verdict": "failure",
+  "reason": "The cart holds a $100 Celebrate Balloons gift card, but nothing in the end state or the actions shows a birthday occasion chosen, so key point 4 is unmet.",
+  "blocked": false,
+  "tiebreak": true
+ },
+ "8768ef1de5": {
+  "verdict": "failure",
+  "reason": "The run ends on an unfiltered CVS Women's Daily Multivitamin Gummies page ($18.19, 153 reviews) and nothing in the packet shows the brand, gluten-free, under-$15 and most-reviewed filters applied or the claimed Spectravite $9.29/145-review product being the top match.",
+  "blocked": false
+ },
+ "0608d4870b": {
+  "verdict": "failure",
+  "reason": "The final AKC Event Search form shows no results, the date range is 04/01/2027 to 05/31/2027 rather than May, and the agent itself says it could not verify any obedience trials in New York.",
+  "blocked": false
+ },
+ "a65dcc0bcd": {
+  "verdict": "success",
+  "reason": "The final page is nfl.com/teams/buffalo-bills showing '1st AFC East 6-1-0', consistent with the answer that Buffalo leads the division, reached after a multi-step navigation on nfl.com.",
+  "blocked": false
+ },
+ "0dda5dcfd2": {
+  "verdict": "success",
+  "reason": "Final page is the UPS Access Point at CVS, 24802 Aldine Westfield Rd, Spring, TX 77373, showing 'Services at this Location' with Drop Off and Pick Up and 'Pick Up & Drop Off for Pre-Packaged Pre-Labeled Shipments', matching the answer.",
+  "blocked": false
+ },
+ "3ba99c1b8f": {
+  "verdict": "success",
+  "reason": "Final NBA.com leaders page is set to 2026-27 Regular Season, Totals, BLK with Victor Wembanyama listed first, supporting the named leader (the 39 figure is not visible in the captured text and the screenshot is covered by a cookie banner, but the leader itself is shown).",
+  "blocked": false
+ },
+ "8f51ffdc7a": {
+  "verdict": "success",
+  "reason": "Final CarMax page is titled 'Used Honda and Nissan for sale' with 2 filters (Nissan checked in the Make list, Honda cars listed) and the top cars show the Grand Rapids (Kentwood) store, consistent with the 49512 location entered in the actions.",
+  "blocked": false
+ },
+ "aa073b5a8d": {
+  "verdict": "success",
+  "reason": "Final Drugs.com Drug Interaction Report lists Folate Forte (multivitamin) and melatonin and states 'No drug interactions found' (Major 0, Moderate 0, Minor 0), matching the agent's answer.",
+  "blocked": false
+ },
+ "631202fd2e": {
+  "verdict": "success",
+  "reason": "OSU Class Search (Course Catalog & Master Schedule) shows active filters Subject: Computer Science & Engineering and Academic Career: Graduate with 1438 results and CSE 5xxx/6xxx sections listed.",
+  "blocked": false
+ },
+ "c0f3c5f3b2": {
+  "verdict": "success",
+  "reason": "The final page is foxsports.com/soccer/mls/standings showing 2026 live MLS standings, and the answer's Nashville 77, Inter Miami 60, Vancouver 64 etc. match the page text.",
+  "blocked": false
+ },
+ "1780660b60": {
+  "verdict": "success",
+  "reason": "Final screenshot and page text show United's Explore destinations interactive map set to Flying from Las Vegas LAS, Search type Roundtrip, Dates Flexible dates, with the results list open showing fares (e.g. Albuquerque from $209).",
+  "blocked": false
+ },
+ "1a44494377": {
+  "verdict": "success",
+  "reason": "Explore Courses results show Winter 2022-2023 with Graduate, afternoon and Monday filters checked and CHEM 300 listed Mon 3:00-4:20 PM from 01/09/2023.",
+  "blocked": false
+ },
+ "e558cf3354": {
+  "verdict": "success",
+  "reason": "The final page is justice.gov/civil/documents-and-forms-0, the Civil Division Documents and Forms list with its form categories visible in the screenshot.",
+  "blocked": false
+ },
+ "8aaf4b8f2d": {
+  "verdict": "success",
+  "reason": "The final americashealthrankings.org page is State Comparison for Illinois and Michigan (URL unemployment_women/IL/compare/MI) with the 'Unemployment - Women Trends' figure heading and chart grid on screen.",
+  "blocked": false
+ },
+ "013c082046": {
+  "verdict": "success",
+  "reason": "Final arXiv page shows 2,236 results for all='reinforcement learning' with classification Computer Science and Mathematics, date range 2024-09-01 to 2025-01-31 applied, sorted by submission date.",
+  "blocked": false
+ },
+ "a866470eb5": {
+  "verdict": "success",
+  "reason": "Final AccuWeather page is the Brazil wind flow map (url /br/national/wind-flow, 'BRAZIL WIND FLOW' with wind contours) with Belo Horizonte, Minas Gerais set as the current location in the header and breadcrumb.",
+  "blocked": false
+ },
+ "29918d0ce4": {
+  "verdict": "success",
+  "reason": "Final KFC checkout shows Quick Pick-up at KFC 408 8th Avenue, New York, NY 10001 for November 9th, 2026 at 12:00 PM with 1 item in the bag and $16.65 estimated total, matching the answer; the item options were selected through the action sequence though the bag contents are not expanded.",
+  "blocked": false
+ },
+ "03dcc15cbe": {
+  "verdict": "failure",
+  "reason": "The filtered France / 2022-2023 / hiring list never appears in the evidence (the clicks are opaque refs and the end state is one company's jobs page), and HyLight's openings were never opened, so completeness is unsupported; in doubt, failure.",
+  "blocked": false,
+  "tiebreak": true
+ },
+ "744d5b6b2f": {
+  "verdict": "success",
+  "reason": "Final page is Mayo Clinic's 'Fever Symptoms and causes' article (Overview, Symptoms, Causes sections) and the answer's symptoms and causes correspond to that article.",
+  "blocked": false
+ },
+ "8454c4ef9d": {
+  "verdict": "success",
+  "reason": "The actions search Coursera for Psychology and open related courses, with the final page displaying Yale Introduction to Psychology and its modules.",
+  "blocked": false
+ },
+ "a1bf33a99d": {
+  "verdict": "failure",
+  "reason": "The Calgary current-weather page shows a wind warning but neither its captured text nor screenshot displays the claimed current wind speed of 33 km/h.",
+  "blocked": false
+ },
+ "945dadfa56": {
+  "verdict": "success",
+  "reason": "The final GameStop product page visibly displays Sony PlayStation 5 Digital Edition Console with its price and Add to Cart button.",
+  "blocked": false
+ },
+ "ba2297995b": {
+  "verdict": "success",
+  "reason": "The final Petfinder URL and page show Seattle with age=young and Sort By 'Newest Addition' applied, with the results the answer shows off.",
+  "blocked": false
+ },
+ "0c5dfc6c88": {
+  "verdict": "success",
+  "reason": "The Airbnb search retains Cleveland, November 10-13, two adults, two children, one pet, $100-$300 and three amenity filters, while the selected listing shows $303 for three nights and a gym photo.",
+  "blocked": false
+ },
+ "2f56ff55bf": {
+  "verdict": "success",
+  "reason": "The Cookpad recipe Teriyaki Eggplant & Mushroom Don visibly lists 2-3 Asian eggplants and 8-9 shiitake mushrooms in its ingredients.",
+  "blocked": false
+ },
+ "cf701817e0": {
+  "verdict": "failure",
+  "reason": "The final IGN page confirms a board-game review and actions select score 10, but neither captured page text nor screenshot establishes the required Editors Choice designation.",
+  "blocked": false
+ },
+ "df931b1316": {
+  "verdict": "success",
+  "reason": "The actions select past year on the Steam Deck chart and open Slay the Spire 2, whose final reviews visibly have Over 100 hours and Played mostly on Steam Deck selected.",
+  "blocked": false
+ },
+ "0cb0acb3c5": {
+  "verdict": "success",
+  "reason": "The final Verizon page shows four Unlimited lines at $140 with Auto Pay on and states Auto Pay saves $10/mo per line, so the $180 without Auto Pay agrees with the page.",
+  "blocked": false
+ },
+ "ead11a22c0": {
+  "verdict": "success",
+  "reason": "The final StubHub Boston Bruins in Boston page lists 33 local NHL events and shows matchups at TD Garden in Boston, MA.",
+  "blocked": false
+ },
+ "abf8811b03": {
+  "verdict": "success",
+  "reason": "The actions enter monthly income 6000 and the final Apartments.com page shows rentals in 90012 capped at $1800, matching the calculated 30% budget.",
+  "blocked": false
+ },
+ "320e639dc6": {
+  "verdict": "success",
+  "reason": "The Best Buy cart visibly contains one $100 Best Buy Celebrate Balloons gift card, a suitable birthday celebration design, with a $100 total.",
+  "blocked": false
+ },
+ "de41bbbbb2": {
+  "verdict": "failure",
+  "reason": "The final page shows a $10.99 multivitamin with only two reviews and does not establish that it is the most reviewed gluten-free option under $15 or show the required filters and ranking applied.",
+  "blocked": false
+ },
+ "de8da95964": {
+  "verdict": "success",
+  "reason": "The AKC calendar visibly applies Obedience Trials, NY and May 2027, and the final page includes an Albany Obedience Club event.",
+  "blocked": false
+ },
+ "1d72134e9a": {
+  "verdict": "success",
+  "reason": "The final NFL.com Buffalo Bills team page visibly labels the team 1st AFC East with a 6-1-0 record, matching the identified division leader.",
+  "blocked": false
+ },
+ "228b11fd18": {
+  "verdict": "failure",
+  "reason": "The page shows the Michaels Access Point in Spring, TX, but none of the services the answer lists (restricted articles, mobile barcodes, staffed) appear in the evidence, so key point 3 is unsupported.",
+  "blocked": false,
+  "tiebreak": true
+ },
+ "347bf44c30": {
+  "verdict": "failure",
+  "reason": "The captured page text is unavailable and the screenshot shows overlays rather than the blocked-shots totals, leaving the claimed Wembanyama total of 39 unsupported.",
+  "blocked": false
+ },
+ "a905d9cdc4": {
+  "verdict": "success",
+  "reason": "The final CarMax page is filtered to Honda and Nissan and the screenshot shows cars available for test drives today at Grand Rapids (Kentwood).",
+  "blocked": false
+ }
+}

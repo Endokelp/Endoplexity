@@ -1,0 +1,31 @@
+{
+  "model": "gpt-6.1-sol",
+  "start": "https://www.ups.com/",
+  "start_error": null,
+  "wall": 33302,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 11,
+  "tool_turns": 10,
+  "tool_calls": 10,
+  "input_tokens": 19444,
+  "cache_read": 122624,
+  "cache_write": 0,
+  "output_tokens": 509,
+  "cost_usd": null,
+  "screenshots": 0,
+  "sequence": [
+    "mcp__endo__snapshot",
+    "mcp__endo__click",
+    "mcp__endo__type",
+    "mcp__endo__click",
+    "mcp__endo__find",
+    "mcp__endo__key",
+    "mcp__endo__click",
+    "mcp__endo__navigate",
+    "mcp__endo__click",
+    "mcp__endo__snapshot"
+  ],
+  "answer": "A UPS Access Point in Spring is **inside CVS** at **24802 Aldine Westfield Rd, Spring, TX 77373**.\n\nServices provided:\n\n- **Drop off packages**, including returns, that are already packaged with a printed shipping label.\n- **Pick up packages** shipped directly or redirected to this Access Point.\n- **Evening and weekend availability** for pickups and drop-offs.\n\nBring an ID matching the delivery information when collecting a package.\n\n**Contact:** (800) 742-5877  \n[UPS locations in Spring](https://locations.ups.com/us/en/tx/spring/)",
+  "final_tabs": "* id 1702767522 — \"UPS Access Point®\" https://locations.ups.com/us/en/tx/spring/access-point-location-174848.html"
+}

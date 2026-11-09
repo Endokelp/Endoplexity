@@ -1,0 +1,27 @@
+{
+  "model": "cic:claude-sonnet-5-5",
+  "start": "https://www.ycombinator.com/",
+  "wall": 41452,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 8,
+  "tool_turns": 7,
+  "tool_calls": 7,
+  "input_tokens": 18,
+  "cache_read": 139573,
+  "cache_write": 14269,
+  "output_tokens": 1532,
+  "cost_usd": 0.1738476,
+  "screenshots": 1,
+  "sequence": [
+    "ToolSearch",
+    "mcp__claude-in-chrome__select_browser",
+    "mcp__claude-in-chrome__tabs_context_mcp",
+    "mcp__claude-in-chrome__navigate",
+    "ToolSearch",
+    "mcp__claude-in-chrome__browser_batch",
+    "mcp__claude-in-chrome__get_page_text"
+  ],
+  "answer": "Six YC startups from the 2022 and 2023 batches are based in France and currently list job openings. I used the YC Startup Directory with these filters: batches Winter 2022, Summer 2022, Winter 2023 and Summer 2023; HQ region France; Is Hiring.\n\n| Company | Batch | What they do | Location |\n|---|---|---|---|\n| Osium AI | Summer 2023 | AI to speed up materials innovation | Paris |\n| Rimward | Summer 2023 | Solar farm security software for existing cameras | Paris |\n| Twenty | Summer 2023 | Open-source CRM | Paris |\n| HyLight | Summer 2023 | Unmanned airships for inspecting critical assets | Paris |\n| Escape | Winter 2023 | Offensive security tooling | Paris |\n| Windmill | Summer 2022 | Open-source platform to turn scripts into internal apps and workflows | Paris |\n\n- **Missing French founders:** The directory's own note says the HQ filter doesn't include companies originally founded in France or by founders from there. A French-founded company headquartered elsewhere, such as San Francisco, won't appear.\n- **Hiring flag not checked:** I relied on YC's \"Is Hiring\" flag. I didn't open each company's job page to confirm the individual openings.",
+  "final_tabs": "* id 0 — \"The YC Startup Directory | Y Combinator\" https://www.ycombinator.com/companies?batch=Winter%202022&batch=Summer%202022&batch=Winter%202023&batch=Summer%202023&isHiring=true&regions=France"
+}

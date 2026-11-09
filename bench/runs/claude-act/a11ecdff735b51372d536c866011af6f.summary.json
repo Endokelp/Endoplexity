@@ -1,0 +1,26 @@
+{
+  "model": "claude-sonnet-5-5",
+  "start": "https://www.coursera.org/",
+  "wall": 27845,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 7,
+  "tool_turns": 6,
+  "tool_calls": 6,
+  "input_tokens": 12,
+  "cache_read": 71207,
+  "cache_write": 24991,
+  "output_tokens": 1052,
+  "cost_usd": 0.2362394,
+  "screenshots": 0,
+  "sequence": [
+    "ToolSearch",
+    "mcp__endo__find",
+    "mcp__endo__type",
+    "mcp__endo__key",
+    "mcp__endo__type",
+    "mcp__endo__key"
+  ],
+  "answer": "I searched Coursera for \"Psychology\" and the results page lists these courses (all are Specializations):\n\n- **Foundations of Positive Psychology** – University of Pennsylvania\n- **Psychology of Anxiety, Mood, Substance Use, and Addictive Behaviors** – American Psychological Association (APA)\n- **The science of mind and decision making** – University of Cambridge\n- **Psychology of Disorders Related to Trauma, Anxiety, & Stress** – APA\n- **Psychological Research** – APA\n- **Abnormal Psychology** – Wesleyan University\n- **Psychology of Substance Use, Depressive Disorders, & Trauma** – APA\n- **Qualitative Research Methods in Psychology** – APA\n- **Marketing Psychology & Neuromarketing - 2026** – Alex Genadinik\n- **Psychology in the Age of GenAI: The Human Mind and Behavior** – Coursera\n- **Basic Inferential Statistics for Psychology** – APA\n- **Data Exploration in Psychology** – APA\n\nThe page also offers topic shortcuts: introduction to psychology, clinical psychology, counseling psychology, developmental psychology, and neuroscience and psychology. It has filters for Topic, Duration, Learning Product, Language and Level too. I can narrow the results to one of these or open a course for details.",
+  "final_tabs": "* id 1384379360 — \"Coursera | Online Courses From Top Universities. Join for Free\" https://www.coursera.org/search?query=Psychology"
+}

@@ -24,7 +24,9 @@ const median = (xs) => {
 const tokens = (s) => s.input_tokens + s.cache_read + s.cache_write + s.output_tokens;
 // What a model had to read fresh or write: the cached prefix is billed at about a tenth.
 const fresh = (s) => s.input_tokens + s.cache_write + s.output_tokens;
-const actions = (s) => s.sequence.filter((n) => !/ToolSearch|getMcpTools/.test(n)).length;
+// select_browser: the comparison rows pick the test browser first, because the
+// owner's own Chrome was connected too. Setup, not work, so not counted.
+const actions = (s) => s.sequence.filter((n) => !/ToolSearch|getMcpTools|select_browser/.test(n)).length;
 
 const rows = {};
 for (const [pid, { condition, task }] of Object.entries(map)) {
@@ -62,7 +64,13 @@ const paired = (a, b) => {
   const B2 = Object.fromEntries(rows[b].map((r) => [r.task, r]));
   const both = rows[a].filter((r) => r.ok && B2[r.task]?.ok).map((r) => [r, B2[r.task]]);
   const ratio = (f) => median(both.map(([x, y]) => f(y) / f(x)));
-  return { a, b, tasks: both.length, wall_x: ratio((r) => r.wall), tokens_x: ratio(tokens), fresh_tokens_x: ratio(fresh), cost_x: ratio((r) => r.cost_usd ?? NaN), actions_x: ratio(actions) };
+  // The same tasks' medians on each side, for the README figure.
+  const pair = (f) => [median(both.map(([x]) => f(x))), median(both.map(([, y]) => f(y)))];
+  return {
+    a, b, tasks: both.length,
+    wall_x: ratio((r) => r.wall), tokens_x: ratio(tokens), fresh_tokens_x: ratio(fresh), cost_x: ratio((r) => r.cost_usd ?? NaN), actions_x: ratio(actions),
+    medians: { wall_s: pair((r) => r.wall / 1000), tokens: pair(tokens), fresh_tokens: pair(fresh), cost_usd: pair((r) => r.cost_usd ?? NaN), actions: pair(actions) },
+  };
 };
 const upstream = Object.fromEntries(Object.keys(tasks[0].human_labels).map((agent) => [agent, tasks.filter((t) => t.human_labels[agent] === 1).length]));
 const out = { generated: new Date().toISOString(), results, paired: paired("claude-off", "cic-claude"), upstream_human_labels_same_30: upstream };

@@ -1,0 +1,31 @@
+{
+  "model": "gpt-6.1-sol",
+  "start": "https://www.nfl.com/",
+  "start_error": null,
+  "wall": 38486,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 12,
+  "tool_turns": 11,
+  "tool_calls": 10,
+  "input_tokens": 41886,
+  "cache_read": 273664,
+  "cache_write": 0,
+  "output_tokens": 393,
+  "cost_usd": null,
+  "screenshots": 0,
+  "sequence": [
+    "mcp__endo__snapshot",
+    "mcp__endo__click",
+    "mcp__endo__click",
+    "mcp__endo__hover",
+    "mcp__endo__hover",
+    "mcp__endo__click",
+    "mcp__endo__hover",
+    "mcp__endo__click",
+    "mcp__endo__snapshot",
+    "mcp__endo__click"
+  ],
+  "answer": "The Buffalo Bills lead the AFC East at 6–1. I opened their NFL.com team page.",
+  "final_tabs": "* id 1702767522 — \"Buffalo Bills News, Scores, Stats, Schedule | NFL.com\" https://www.nfl.com/teams/buffalo-bills/"
+}

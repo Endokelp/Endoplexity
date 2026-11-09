@@ -1,0 +1,27 @@
+{
+  "model": "gpt-6.1-sol",
+  "start": "https://www.mayoclinic.org/",
+  "start_error": null,
+  "wall": 24578,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 7,
+  "tool_turns": 6,
+  "tool_calls": 6,
+  "input_tokens": 14653,
+  "cache_read": 79872,
+  "cache_write": 0,
+  "output_tokens": 496,
+  "cost_usd": null,
+  "screenshots": 0,
+  "sequence": [
+    "mcp__endo__snapshot",
+    "mcp__endo__navigate",
+    "mcp__endo__type",
+    "mcp__endo__key",
+    "mcp__endo__click",
+    "mcp__endo__snapshot"
+  ],
+  "answer": "According to [Mayo Clinic’s “Fever: Symptoms and causes”](https://www.mayoclinic.org/diseases-conditions/fever/symptoms-causes/syc-20352759), fever is a temporary rise in body temperature, usually caused by an infection. An oral temperature of **100°F (37.8°C) or higher** is generally considered a fever.\n\n**Symptoms** may include:\n\n- Sweating, chills and shivering\n- Headache and muscle aches\n- Loss of appetite\n- Irritability\n- Dehydration and general weakness\n\n**Causes** include:\n\n- Viral or bacterial infections\n- Heat exhaustion\n- Inflammatory conditions, such as rheumatoid arthritis\n- Cancerous tumors\n- Certain medicines, including some antibiotics and medicines for high blood pressure or seizures\n- Some vaccines\n\nFever occurs when the brain’s temperature regulator, the hypothalamus, raises the body’s temperature setting during an immune response.\n\n**When to seek care:** Call a healthcare provider for an adult temperature of **103°F (39.4°C) or higher**, or for a baby younger than 3 months with a rectal temperature of **100.4°F (38°C) or higher**. Seek immediate attention for fever with trouble breathing, chest pain, confusion, stiff neck, severe headache or seizures.",
+  "final_tabs": "* id 1702767526 — \"Fever - Symptoms and causes - Mayo Clinic\" https://www.mayoclinic.org/diseases-conditions/fever/symptoms-causes/syc-20352759"
+}

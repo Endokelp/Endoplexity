@@ -1,0 +1,23 @@
+{
+  "model": "claude-sonnet-5-5",
+  "start": "https://www.mayoclinic.org/",
+  "start_error": null,
+  "wall": 14525,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 3,
+  "tool_turns": 2,
+  "tool_calls": 2,
+  "input_tokens": 8,
+  "cache_read": 43364,
+  "cache_write": 11487,
+  "output_tokens": 1259,
+  "cost_usd": 0.1267778,
+  "screenshots": 0,
+  "sequence": [
+    "ToolSearch",
+    "mcp__endo__navigate"
+  ],
+  "answer": "Source: Mayo Clinic's \"Fever: Symptoms and causes\" page, https://www.mayoclinic.org/diseases-conditions/fever/symptoms-causes/syc-20352759\n\n**Symptoms**\n- A fever is a temporary rise in body temperature. An oral temperature of 100 F (37.8 C) or higher is generally considered a fever. The traditional average is 98.6 F (37 C).\n- Depending on the cause, other symptoms can include:\n  - sweating\n  - chills and shivering\n  - headache\n  - muscle aches\n  - loss of appetite\n  - irritability\n  - dehydration\n  - general weakness\n\n**When to get medical help**\n- **Infants under 3 months:** Call a provider for a rectal temperature of 100.4 F (38 C) or higher.\n- **Infants 3–6 months:** Call for a rectal temperature above 102 F (38.9 C), or if the baby is unusually irritable, sluggish or uncomfortable.\n- **Children 7–24 months:** Call for a rectal temperature above 102 F (38.9 C) that lasts longer than a day with no other symptoms.\n- **Children in general:** Call if the fever lasts more than three days, or if your child is listless or confused, vomits repeatedly, or has a seizure.\n- **Adults:** Call for a temperature of 103 F (39.4 C) or higher. Get immediate care if the fever comes with any of these:\n  - severe headache\n  - rash\n  - stiff neck\n  - confusion\n  - trouble breathing or chest pain\n  - persistent vomiting\n  - abdominal pain\n  - pain when urinating\n  - seizures\n\n**Causes**\n- **How a fever starts:** The hypothalamus in the brain acts as the body's thermostat. When the immune system responds to disease, the hypothalamus can set your body temperature higher.\n- **Is it harmful?** Fevers below 104 F (40 C) from common viral infections like the flu may help the immune system fight disease and are generally not harmful.\n- **Possible causes:**\n  - viral infection\n  - bacterial infection\n  - heat exhaustion\n  - inflammatory conditions such as rheumatoid arthritis\n  - a cancerous tumor\n  - some medications, including certain antibiotics and drugs for high blood pressure or seizures\n  - some immunizations, such as DTaP, pneumococcal or COVID vaccines\n\n**Other points from the page**\n- Children aged 6 months to 5 years are at higher risk of febrile seizures.\n- The page notes that a fever is a vital sign, not a medical condition, so it has no risk factors of its own. The conditions that cause fevers do.",
+  "final_tabs": "* id 1384379376 — \"Fever - Symptoms and causes - Mayo Clinic\" https://www.mayoclinic.org/diseases-conditions/fever/symptoms-causes/syc-20352759"
+}

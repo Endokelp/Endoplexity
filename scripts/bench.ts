@@ -69,7 +69,9 @@ async function tool(name: string, args: Record<string, unknown> = {}) {
 // measuring the product.
 const start = process.env.ENDO_BENCH_URL ?? "about:blank";
 const parked = await tool("navigate", { url: start });
-if (parked.startsWith("error:")) {
+// A slow site's load running past the tool's 30 s is the site, not the
+// harness: the run still starts there. Only a missing panel stops the bench.
+if (parked.startsWith("error:") && /panel/.test(parked)) {
   console.error(`${parked}\n\nOpen the side panel and check it says connected.`);
   process.exit(1);
 }
@@ -202,6 +204,8 @@ writeFileSync(
   JSON.stringify({
     model,
     start,
+    // The harness's own first navigate, before the model ran (a slow site).
+    start_error: parked.startsWith("error:") ? parked.slice(0, 200) : null,
     wall,
     timedOut,
     error: end.type === "failed" || end.error ? String(end.error ?? end.message ?? "failed").slice(0, 500) : null,

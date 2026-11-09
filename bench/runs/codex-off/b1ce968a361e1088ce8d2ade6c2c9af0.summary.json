@@ -1,0 +1,28 @@
+{
+  "model": "gpt-6.1-sol",
+  "start": "https://www.petfinder.com/",
+  "start_error": null,
+  "wall": 30451,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 8,
+  "tool_turns": 7,
+  "tool_calls": 7,
+  "input_tokens": 28152,
+  "cache_read": 82688,
+  "cache_write": 0,
+  "output_tokens": 347,
+  "cost_usd": null,
+  "screenshots": 0,
+  "sequence": [
+    "mcp__endo__snapshot",
+    "mcp__endo__click",
+    "mcp__endo__type",
+    "mcp__endo__key",
+    "mcp__endo__type",
+    "mcp__endo__key",
+    "mcp__endo__batch"
+  ],
+  "answer": "The browser connection dropped before I could finish setting Seattle, the Young age filter, and newest-first sorting. Reconnect the browser side panel so I can complete the search.",
+  "final_tabs": "error: no side panel connected — open it and check it says connected"
+}

@@ -1,0 +1,26 @@
+{
+  "model": "gpt-6.1-sol",
+  "start": "https://www.foxsports.com/",
+  "start_error": null,
+  "wall": 22953,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 7,
+  "tool_turns": 6,
+  "tool_calls": 5,
+  "input_tokens": 49351,
+  "cache_read": 119424,
+  "cache_write": 0,
+  "output_tokens": 366,
+  "cost_usd": null,
+  "screenshots": 0,
+  "sequence": [
+    "mcp__endo__snapshot",
+    "mcp__endo__click",
+    "mcp__endo__click",
+    "mcp__endo__find",
+    "mcp__endo__click"
+  ],
+  "answer": "FOX Sports’ **2026 MLS standings** show:\n\n| Rank | Eastern Conference | Points | Western Conference | Points |\n|---|---|---:|---|---:|\n| 1 | Nashville SC | 77 | Vancouver | 64 |\n| 2 | Inter Miami CF | 60 | FC Dallas | 58 |\n| 3 | New England | 58 | Saint Louis City SC | 54 |\n| 4 | Chicago | 55 | San Jose | 52 |\n| 5 | Charlotte FC | 54 | Houston | 51 |\n\nAll teams above have played 34 matches. Nashville leads MLS overall.\n\nThe browser is now on the [FOX Sports MLS standings](https://www.foxsports.com/soccer/mls/standings).",
+  "final_tabs": "* id 1702767522 — \"2026 MLS Standings & Table | FOX Sports\" https://www.foxsports.com/soccer/mls/standings"
+}

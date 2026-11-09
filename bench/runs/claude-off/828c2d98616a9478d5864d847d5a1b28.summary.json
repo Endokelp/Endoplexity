@@ -1,0 +1,26 @@
+{
+  "model": "claude-sonnet-5-5",
+  "start": "https://www.justice.gov/",
+  "start_error": null,
+  "wall": 17338,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 6,
+  "tool_turns": 5,
+  "tool_calls": 5,
+  "input_tokens": 14,
+  "cache_read": 101576,
+  "cache_write": 11132,
+  "output_tokens": 1203,
+  "cost_usd": 0.1344712,
+  "screenshots": 0,
+  "sequence": [
+    "ToolSearch",
+    "mcp__endo__find",
+    "mcp__endo__navigate",
+    "mcp__endo__navigate",
+    "mcp__endo__click"
+  ],
+  "answer": "I'm on the Civil Division \"Documents and Forms\" page (reached from the Civil Division page's \"Public Documents\" link). The forms are grouped by branch:\n\n**Commercial Litigation**\n- Fraud Section: The False Claims Act: A Primer; False Claims Act Statistics\n- Corporate / Financial Litigation: Appendix A: Attestation Form (student loan bankruptcy discharge), plus the related guidance and Appendix B: Sample Scenario\n- Intellectual Property Section: statute references (28 U.S.C. § 1498, 35 U.S.C. § 271(a), and others)\n- National Courts Section: Appellate Practice and Trial Practice documents\n- Office of Foreign Litigation\n\n**Torts Branch**\n- Constitutional & Specialized Tort Litigation (Radiation Exposure Compensation Act claim forms): Onsite Participant, Downwinder, Uranium Mine Employee, Ore Transporter and Uranium Mill Employee Claim Forms\n- Federal Tort Claims Act Litigation: Annuity Broker Declaration; Standard Form 95 (Claim for Damage, Injury, or Death)\n- Aviation, Space and Admiralty Litigation and Environmental Tort Litigation sections are listed without forms\n\n**General forms**\n- Standard Form 95\n- FMS 194, FMS 196 and FMS 197\n\nThe Enforcement & Affirmative Litigation Branch and Office of Immigration Litigation sections show no forms in the page outline.\n\nI can open any of these forms or sections if you want.",
+  "final_tabs": "* id 914606263 — \"Civil Division | Documents and Forms\" https://www.justice.gov/civil/documents-and-forms-0"
+}

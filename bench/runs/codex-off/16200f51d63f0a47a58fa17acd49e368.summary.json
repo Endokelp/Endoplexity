@@ -1,0 +1,28 @@
+{
+  "model": "gpt-6.1-sol",
+  "start": "https://cookpad.com/",
+  "start_error": null,
+  "wall": 21687,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 8,
+  "tool_turns": 7,
+  "tool_calls": 7,
+  "input_tokens": 30053,
+  "cache_read": 66048,
+  "cache_write": 0,
+  "output_tokens": 320,
+  "cost_usd": null,
+  "screenshots": 0,
+  "sequence": [
+    "mcp__endo__snapshot",
+    "mcp__endo__navigate",
+    "mcp__endo__click",
+    "mcp__endo__type",
+    "mcp__endo__key",
+    "mcp__endo__navigate",
+    "mcp__endo__click"
+  ],
+  "answer": "Found **Teriyaki Eggplant & Mushroom Don** by **2 Cancerians cook, Libra eats** on Cookpad.\n\nIt includes **Asian eggplant and shiitake mushrooms**, takes **45 minutes**, and makes **3 servings**.",
+  "final_tabs": "* id 1702767514 — \"Teriyaki Eggplant & Mushroom Don Recipe By 2 Cancerians Cook, Libra Eats\" https://cookpad.com/eng/recipes/17110323?ref=search&search_term=eggplant+mushrooms"
+}

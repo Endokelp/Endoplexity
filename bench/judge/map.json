@@ -1,0 +1,554 @@
+{
+ "8bb2fb3c98": {
+  "condition": "cic-claude",
+  "task": "a11ecdff735b51372d536c866011af6f"
+ },
+ "6db9824f1b": {
+  "condition": "cic-claude",
+  "task": "2207bb4f21786690cfed20b37253fb8b"
+ },
+ "6cabfa2beb": {
+  "condition": "cic-claude",
+  "task": "62f1626ce249c31098854f8b38bdd6cf"
+ },
+ "ef79311378": {
+  "condition": "cic-claude",
+  "task": "b1ce968a361e1088ce8d2ade6c2c9af0"
+ },
+ "a989276ebf": {
+  "condition": "cic-claude",
+  "task": "a13e4231a3d6a7000c622c56448d97ba"
+ },
+ "23ee1fc022": {
+  "condition": "cic-claude",
+  "task": "16200f51d63f0a47a58fa17acd49e368"
+ },
+ "00a26b8428": {
+  "condition": "cic-claude",
+  "task": "aa4b5cb7114fcc138ade82b4b9716d24"
+ },
+ "36eae1c63f": {
+  "condition": "cic-claude",
+  "task": "62c8d970b3d13891f355911e5a8f4030"
+ },
+ "152485ec0f": {
+  "condition": "cic-claude",
+  "task": "c7c07ec10c668625a21ba64165d719bb"
+ },
+ "24d244b336": {
+  "condition": "cic-claude",
+  "task": "9d09bc948462db032bac98968b11b008"
+ },
+ "ccee0462d9": {
+  "condition": "cic-claude",
+  "task": "26784156ae9859a0dd6c5920eb106f91"
+ },
+ "05bf2e5d0a": {
+  "condition": "cic-claude",
+  "task": "d392e154c1c6ffbb26e2331c3afafc67"
+ },
+ "5ec86eeab8": {
+  "condition": "cic-claude",
+  "task": "afcebfed28bea091d58f49ea6cb8194b"
+ },
+ "8a84e7580c": {
+  "condition": "cic-claude",
+  "task": "f2be37a9a60fbc25b6b11cf622d17352"
+ },
+ "c0a3d001a0": {
+  "condition": "cic-claude",
+  "task": "3f312ae3efc3c3e90ababe050dd4e7ae"
+ },
+ "fb584e076b": {
+  "condition": "cic-claude",
+  "task": "9b5dfe54a1c14c5c6336bae7374c3bb5"
+ },
+ "bd0a23de0d": {
+  "condition": "cic-claude",
+  "task": "627f7a18d85f29a687234f1ade4585c2"
+ },
+ "a794d980a2": {
+  "condition": "cic-claude",
+  "task": "8fdec8eeffd3491e6526cc78c028120b"
+ },
+ "b6a1ca71ee": {
+  "condition": "cic-claude",
+  "task": "07ec4a12cba8090e2dc524d558ac7675"
+ },
+ "5704eac643": {
+  "condition": "cic-claude",
+  "task": "bb518416a786fdb9b9bbf0c78515595e"
+ },
+ "f155942b1d": {
+  "condition": "cic-claude",
+  "task": "b6d10e9bd19b4009a02dea0e98f4e1ae"
+ },
+ "4e74fba454": {
+  "condition": "cic-claude",
+  "task": "bfa2de159be6978acf2702be31a2eeeb"
+ },
+ "17d770ed2b": {
+  "condition": "cic-claude",
+  "task": "27fa3ac20745d3d35e89fae157f63069"
+ },
+ "ab5495eef1": {
+  "condition": "cic-claude",
+  "task": "828c2d98616a9478d5864d847d5a1b28"
+ },
+ "33c10a4cd4": {
+  "condition": "cic-claude",
+  "task": "1b867afecf072cb877ebfa4069263746"
+ },
+ "9fc3e86a47": {
+  "condition": "cic-claude",
+  "task": "71f8de1834599fba443f40dbbfab8edd"
+ },
+ "41bcae21fb": {
+  "condition": "cic-claude",
+  "task": "853afd530c72f4b00ffc32ae854efaf8"
+ },
+ "8b12ed7795": {
+  "condition": "cic-claude",
+  "task": "33bd2cdcea4fcc42a09a8a1e4e5841c6"
+ },
+ "84ee9291a7": {
+  "condition": "cic-claude",
+  "task": "f05e87c5b92d9869e08806103c1c15a1"
+ },
+ "46ba7080a4": {
+  "condition": "cic-claude",
+  "task": "23204728192da9f73197a613d9681c18"
+ },
+ "76e854b05a": {
+  "condition": "claude-act",
+  "task": "a11ecdff735b51372d536c866011af6f"
+ },
+ "ed9ed10a3f": {
+  "condition": "claude-act",
+  "task": "2207bb4f21786690cfed20b37253fb8b"
+ },
+ "b39437bdd4": {
+  "condition": "claude-act",
+  "task": "62f1626ce249c31098854f8b38bdd6cf"
+ },
+ "6084a7e738": {
+  "condition": "claude-act",
+  "task": "b1ce968a361e1088ce8d2ade6c2c9af0"
+ },
+ "ba61c1f562": {
+  "condition": "claude-act",
+  "task": "a13e4231a3d6a7000c622c56448d97ba"
+ },
+ "badb900209": {
+  "condition": "claude-act",
+  "task": "16200f51d63f0a47a58fa17acd49e368"
+ },
+ "318de12a4e": {
+  "condition": "claude-act",
+  "task": "aa4b5cb7114fcc138ade82b4b9716d24"
+ },
+ "bb7b734950": {
+  "condition": "claude-act",
+  "task": "62c8d970b3d13891f355911e5a8f4030"
+ },
+ "5beb0eb6b5": {
+  "condition": "claude-act",
+  "task": "c7c07ec10c668625a21ba64165d719bb"
+ },
+ "6e65cdfd75": {
+  "condition": "claude-act",
+  "task": "9d09bc948462db032bac98968b11b008"
+ },
+ "b9c91e2c66": {
+  "condition": "claude-act",
+  "task": "26784156ae9859a0dd6c5920eb106f91"
+ },
+ "25b47b5741": {
+  "condition": "claude-act",
+  "task": "d392e154c1c6ffbb26e2331c3afafc67"
+ },
+ "655da574bf": {
+  "condition": "claude-act",
+  "task": "afcebfed28bea091d58f49ea6cb8194b"
+ },
+ "52a60f4089": {
+  "condition": "claude-act",
+  "task": "f2be37a9a60fbc25b6b11cf622d17352"
+ },
+ "0761671a99": {
+  "condition": "claude-act",
+  "task": "3f312ae3efc3c3e90ababe050dd4e7ae"
+ },
+ "82e9b27390": {
+  "condition": "claude-act",
+  "task": "9b5dfe54a1c14c5c6336bae7374c3bb5"
+ },
+ "eb43e23708": {
+  "condition": "claude-act",
+  "task": "627f7a18d85f29a687234f1ade4585c2"
+ },
+ "8ae6ad82d8": {
+  "condition": "claude-act",
+  "task": "8fdec8eeffd3491e6526cc78c028120b"
+ },
+ "fa2a1c3393": {
+  "condition": "claude-act",
+  "task": "07ec4a12cba8090e2dc524d558ac7675"
+ },
+ "df5f3f6387": {
+  "condition": "claude-act",
+  "task": "bb518416a786fdb9b9bbf0c78515595e"
+ },
+ "25923ea354": {
+  "condition": "claude-act",
+  "task": "b6d10e9bd19b4009a02dea0e98f4e1ae"
+ },
+ "dc6154db2a": {
+  "condition": "claude-act",
+  "task": "bfa2de159be6978acf2702be31a2eeeb"
+ },
+ "385a103f79": {
+  "condition": "claude-act",
+  "task": "27fa3ac20745d3d35e89fae157f63069"
+ },
+ "668db17d1d": {
+  "condition": "claude-act",
+  "task": "828c2d98616a9478d5864d847d5a1b28"
+ },
+ "7137f7cf78": {
+  "condition": "claude-act",
+  "task": "1b867afecf072cb877ebfa4069263746"
+ },
+ "548ee2236e": {
+  "condition": "claude-act",
+  "task": "71f8de1834599fba443f40dbbfab8edd"
+ },
+ "297f03e40a": {
+  "condition": "claude-act",
+  "task": "853afd530c72f4b00ffc32ae854efaf8"
+ },
+ "d91e21fa04": {
+  "condition": "claude-act",
+  "task": "33bd2cdcea4fcc42a09a8a1e4e5841c6"
+ },
+ "90c5ed0652": {
+  "condition": "claude-act",
+  "task": "f05e87c5b92d9869e08806103c1c15a1"
+ },
+ "a19febe818": {
+  "condition": "claude-act",
+  "task": "23204728192da9f73197a613d9681c18"
+ },
+ "dafb89c30c": {
+  "condition": "claude-off",
+  "task": "a11ecdff735b51372d536c866011af6f"
+ },
+ "711f9100a5": {
+  "condition": "claude-off",
+  "task": "2207bb4f21786690cfed20b37253fb8b"
+ },
+ "cf3636c8ed": {
+  "condition": "claude-off",
+  "task": "62f1626ce249c31098854f8b38bdd6cf"
+ },
+ "f13b56b5da": {
+  "condition": "claude-off",
+  "task": "b1ce968a361e1088ce8d2ade6c2c9af0"
+ },
+ "051cee3f8a": {
+  "condition": "claude-off",
+  "task": "a13e4231a3d6a7000c622c56448d97ba"
+ },
+ "591fb3fad5": {
+  "condition": "claude-off",
+  "task": "16200f51d63f0a47a58fa17acd49e368"
+ },
+ "c78c7e5fe5": {
+  "condition": "claude-off",
+  "task": "aa4b5cb7114fcc138ade82b4b9716d24"
+ },
+ "cd8fe9e93b": {
+  "condition": "claude-off",
+  "task": "62c8d970b3d13891f355911e5a8f4030"
+ },
+ "32d1b87dd3": {
+  "condition": "claude-off",
+  "task": "c7c07ec10c668625a21ba64165d719bb"
+ },
+ "1e253c196c": {
+  "condition": "claude-off",
+  "task": "9d09bc948462db032bac98968b11b008"
+ },
+ "9b4f797525": {
+  "condition": "claude-off",
+  "task": "26784156ae9859a0dd6c5920eb106f91"
+ },
+ "c856705df3": {
+  "condition": "claude-off",
+  "task": "d392e154c1c6ffbb26e2331c3afafc67"
+ },
+ "588b1f416f": {
+  "condition": "claude-off",
+  "task": "afcebfed28bea091d58f49ea6cb8194b"
+ },
+ "d502c6a772": {
+  "condition": "claude-off",
+  "task": "f2be37a9a60fbc25b6b11cf622d17352"
+ },
+ "9d7ea4270f": {
+  "condition": "claude-off",
+  "task": "3f312ae3efc3c3e90ababe050dd4e7ae"
+ },
+ "e3959eeceb": {
+  "condition": "claude-off",
+  "task": "9b5dfe54a1c14c5c6336bae7374c3bb5"
+ },
+ "58d0816b71": {
+  "condition": "claude-off",
+  "task": "627f7a18d85f29a687234f1ade4585c2"
+ },
+ "2e49370b27": {
+  "condition": "claude-off",
+  "task": "8fdec8eeffd3491e6526cc78c028120b"
+ },
+ "bd6804d42e": {
+  "condition": "claude-off",
+  "task": "07ec4a12cba8090e2dc524d558ac7675"
+ },
+ "58d28e30c3": {
+  "condition": "claude-off",
+  "task": "bb518416a786fdb9b9bbf0c78515595e"
+ },
+ "795e6d590d": {
+  "condition": "claude-off",
+  "task": "b6d10e9bd19b4009a02dea0e98f4e1ae"
+ },
+ "090550f1e6": {
+  "condition": "claude-off",
+  "task": "bfa2de159be6978acf2702be31a2eeeb"
+ },
+ "bf63d34ceb": {
+  "condition": "claude-off",
+  "task": "27fa3ac20745d3d35e89fae157f63069"
+ },
+ "fb99d2e82a": {
+  "condition": "claude-off",
+  "task": "828c2d98616a9478d5864d847d5a1b28"
+ },
+ "5fbd90874d": {
+  "condition": "claude-off",
+  "task": "1b867afecf072cb877ebfa4069263746"
+ },
+ "6295603965": {
+  "condition": "claude-off",
+  "task": "71f8de1834599fba443f40dbbfab8edd"
+ },
+ "e5372467d0": {
+  "condition": "claude-off",
+  "task": "853afd530c72f4b00ffc32ae854efaf8"
+ },
+ "ae0910c7db": {
+  "condition": "claude-off",
+  "task": "33bd2cdcea4fcc42a09a8a1e4e5841c6"
+ },
+ "2b76ad08b0": {
+  "condition": "claude-off",
+  "task": "f05e87c5b92d9869e08806103c1c15a1"
+ },
+ "a9bcaa2ae0": {
+  "condition": "claude-off",
+  "task": "23204728192da9f73197a613d9681c18"
+ },
+ "89dc88ef5d": {
+  "condition": "codex-off",
+  "task": "a11ecdff735b51372d536c866011af6f"
+ },
+ "663a3b13d2": {
+  "condition": "codex-off",
+  "task": "2207bb4f21786690cfed20b37253fb8b"
+ },
+ "61dbbb05f0": {
+  "condition": "codex-off",
+  "task": "62f1626ce249c31098854f8b38bdd6cf"
+ },
+ "a81fdbc2b4": {
+  "condition": "codex-off",
+  "task": "b1ce968a361e1088ce8d2ade6c2c9af0"
+ },
+ "4c89b229f7": {
+  "condition": "codex-off",
+  "task": "a13e4231a3d6a7000c622c56448d97ba"
+ },
+ "fdf1e5f011": {
+  "condition": "codex-off",
+  "task": "16200f51d63f0a47a58fa17acd49e368"
+ },
+ "b2cb2ea754": {
+  "condition": "codex-off",
+  "task": "aa4b5cb7114fcc138ade82b4b9716d24"
+ },
+ "45589daec6": {
+  "condition": "codex-off",
+  "task": "62c8d970b3d13891f355911e5a8f4030"
+ },
+ "1d444e9d02": {
+  "condition": "codex-off",
+  "task": "c7c07ec10c668625a21ba64165d719bb"
+ },
+ "6fac6c65d8": {
+  "condition": "codex-off",
+  "task": "9d09bc948462db032bac98968b11b008"
+ },
+ "50e5ed02ea": {
+  "condition": "codex-off",
+  "task": "26784156ae9859a0dd6c5920eb106f91"
+ },
+ "798c35c44d": {
+  "condition": "codex-off",
+  "task": "d392e154c1c6ffbb26e2331c3afafc67"
+ },
+ "8768ef1de5": {
+  "condition": "codex-off",
+  "task": "afcebfed28bea091d58f49ea6cb8194b"
+ },
+ "0608d4870b": {
+  "condition": "codex-off",
+  "task": "f2be37a9a60fbc25b6b11cf622d17352"
+ },
+ "a65dcc0bcd": {
+  "condition": "codex-off",
+  "task": "3f312ae3efc3c3e90ababe050dd4e7ae"
+ },
+ "0dda5dcfd2": {
+  "condition": "codex-off",
+  "task": "9b5dfe54a1c14c5c6336bae7374c3bb5"
+ },
+ "3ba99c1b8f": {
+  "condition": "codex-off",
+  "task": "627f7a18d85f29a687234f1ade4585c2"
+ },
+ "8f51ffdc7a": {
+  "condition": "codex-off",
+  "task": "8fdec8eeffd3491e6526cc78c028120b"
+ },
+ "aa073b5a8d": {
+  "condition": "codex-off",
+  "task": "07ec4a12cba8090e2dc524d558ac7675"
+ },
+ "631202fd2e": {
+  "condition": "codex-off",
+  "task": "bb518416a786fdb9b9bbf0c78515595e"
+ },
+ "c0f3c5f3b2": {
+  "condition": "codex-off",
+  "task": "b6d10e9bd19b4009a02dea0e98f4e1ae"
+ },
+ "1780660b60": {
+  "condition": "codex-off",
+  "task": "bfa2de159be6978acf2702be31a2eeeb"
+ },
+ "1a44494377": {
+  "condition": "codex-off",
+  "task": "27fa3ac20745d3d35e89fae157f63069"
+ },
+ "e558cf3354": {
+  "condition": "codex-off",
+  "task": "828c2d98616a9478d5864d847d5a1b28"
+ },
+ "8aaf4b8f2d": {
+  "condition": "codex-off",
+  "task": "1b867afecf072cb877ebfa4069263746"
+ },
+ "013c082046": {
+  "condition": "codex-off",
+  "task": "71f8de1834599fba443f40dbbfab8edd"
+ },
+ "a866470eb5": {
+  "condition": "codex-off",
+  "task": "853afd530c72f4b00ffc32ae854efaf8"
+ },
+ "29918d0ce4": {
+  "condition": "codex-off",
+  "task": "33bd2cdcea4fcc42a09a8a1e4e5841c6"
+ },
+ "03dcc15cbe": {
+  "condition": "codex-off",
+  "task": "f05e87c5b92d9869e08806103c1c15a1"
+ },
+ "744d5b6b2f": {
+  "condition": "codex-off",
+  "task": "23204728192da9f73197a613d9681c18"
+ },
+ "8454c4ef9d": {
+  "condition": "cursor-off",
+  "task": "a11ecdff735b51372d536c866011af6f"
+ },
+ "a1bf33a99d": {
+  "condition": "cursor-off",
+  "task": "2207bb4f21786690cfed20b37253fb8b"
+ },
+ "945dadfa56": {
+  "condition": "cursor-off",
+  "task": "62f1626ce249c31098854f8b38bdd6cf"
+ },
+ "ba2297995b": {
+  "condition": "cursor-off",
+  "task": "b1ce968a361e1088ce8d2ade6c2c9af0"
+ },
+ "0c5dfc6c88": {
+  "condition": "cursor-off",
+  "task": "a13e4231a3d6a7000c622c56448d97ba"
+ },
+ "2f56ff55bf": {
+  "condition": "cursor-off",
+  "task": "16200f51d63f0a47a58fa17acd49e368"
+ },
+ "cf701817e0": {
+  "condition": "cursor-off",
+  "task": "aa4b5cb7114fcc138ade82b4b9716d24"
+ },
+ "df931b1316": {
+  "condition": "cursor-off",
+  "task": "62c8d970b3d13891f355911e5a8f4030"
+ },
+ "0cb0acb3c5": {
+  "condition": "cursor-off",
+  "task": "c7c07ec10c668625a21ba64165d719bb"
+ },
+ "ead11a22c0": {
+  "condition": "cursor-off",
+  "task": "9d09bc948462db032bac98968b11b008"
+ },
+ "abf8811b03": {
+  "condition": "cursor-off",
+  "task": "26784156ae9859a0dd6c5920eb106f91"
+ },
+ "320e639dc6": {
+  "condition": "cursor-off",
+  "task": "d392e154c1c6ffbb26e2331c3afafc67"
+ },
+ "de41bbbbb2": {
+  "condition": "cursor-off",
+  "task": "afcebfed28bea091d58f49ea6cb8194b"
+ },
+ "de8da95964": {
+  "condition": "cursor-off",
+  "task": "f2be37a9a60fbc25b6b11cf622d17352"
+ },
+ "1d72134e9a": {
+  "condition": "cursor-off",
+  "task": "3f312ae3efc3c3e90ababe050dd4e7ae"
+ },
+ "228b11fd18": {
+  "condition": "cursor-off",
+  "task": "9b5dfe54a1c14c5c6336bae7374c3bb5"
+ },
+ "347bf44c30": {
+  "condition": "cursor-off",
+  "task": "627f7a18d85f29a687234f1ade4585c2"
+ },
+ "a905d9cdc4": {
+  "condition": "cursor-off",
+  "task": "8fdec8eeffd3491e6526cc78c028120b"
+ }
+}

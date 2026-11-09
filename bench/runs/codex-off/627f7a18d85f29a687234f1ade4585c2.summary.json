@@ -1,0 +1,32 @@
+{
+  "model": "gpt-6.1-sol",
+  "start": "https://www.nba.com/",
+  "start_error": null,
+  "wall": 30196,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 12,
+  "tool_turns": 11,
+  "tool_calls": 11,
+  "input_tokens": 63856,
+  "cache_read": 327552,
+  "cache_write": 0,
+  "output_tokens": 450,
+  "cost_usd": null,
+  "screenshots": 0,
+  "sequence": [
+    "mcp__endo__snapshot",
+    "mcp__endo__click",
+    "mcp__endo__select",
+    "mcp__endo__select",
+    "mcp__endo__find",
+    "mcp__endo__snapshot",
+    "mcp__endo__hover",
+    "mcp__endo__click",
+    "mcp__endo__select",
+    "mcp__endo__select",
+    "mcp__endo__select"
+  ],
+  "answer": "Victor Wembanyama (SAS) leads the NBA with **39 total blocked shots** in the 2026–27 regular season, according to [NBA.com’s stats](https://www.nba.com/stats/leaders).",
+  "final_tabs": "* id 1702767522 — \"Season Leaders | Stats | NBA.com\" https://www.nba.com/stats/leaders?StatCategory=BLK&PerMode=Totals"
+}

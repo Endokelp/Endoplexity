@@ -1,0 +1,26 @@
+{
+  "model": "cic:claude-sonnet-5-5",
+  "start": "https://www.coursera.org/",
+  "wall": 38846,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 7,
+  "tool_turns": 6,
+  "tool_calls": 6,
+  "input_tokens": 18,
+  "cache_read": 109910,
+  "cache_write": 21986,
+  "output_tokens": 1698,
+  "cost_usd": 0.232923,
+  "screenshots": 1,
+  "sequence": [
+    "ToolSearch",
+    "mcp__claude-in-chrome__select_browser",
+    "mcp__claude-in-chrome__tabs_context_mcp",
+    "ToolSearch",
+    "mcp__claude-in-chrome__browser_batch",
+    "mcp__claude-in-chrome__browser_batch"
+  ],
+  "answer": "I searched Coursera for \"Psychology\" in the browser you specified. The results page lists many courses. Here are the main ones:\n\n**Clinical and mental health**\n- **Abnormal Psychology** (Wesleyan University): 4.8 stars, 776 reviews, Specialization, 3–6 months.\n- **Psychology of Anxiety, Mood, Substance Use, and Addictive Behaviors** (American Psychological Association, APA): 4.8 stars, 364 reviews.\n- **Psychology of Disorders Related to Trauma, Anxiety, & Stress** (APA): 4.8 stars, 301 reviews.\n- **Psychology of Substance Use, Depressive Disorders, & Trauma** (APA): 4.8 stars, 196 reviews.\n\n**Foundations and applied psychology**\n- **Foundations of Positive Psychology** (University of Pennsylvania): 4.8 stars, 8.7K reviews, Bestseller.\n- **The science of mind and decision making** (University of Cambridge): 4.5 stars, 205 reviews.\n- **Psychology in the Age of GenAI: The Human Mind and Behavior** (Coursera): no rating shown.\n- **Marketing Psychology & Neuromarketing - 2026** (Alex Genadinik): 4.4 stars, 18 reviews.\n\n**Research methods and statistics (all APA)**\n- **Psychological Research**: 4.8 stars, 305 reviews.\n- **Qualitative Research Methods in Psychology**: 4.7 stars, 88 reviews.\n- **Basic Inferential Statistics for Psychology**: 4.6 stars, 10 reviews.\n- **Data Exploration in Psychology**: 4.3 stars, 10 reviews.\n\nAll of these are listed as Beginner level. The page also suggests related searches: introduction to psychology, clinical psychology, developmental psychology, counseling psychology, and neuroscience and psychology.\n\nI left the tab open on the search results at https://www.coursera.org/search?query=Psychology. I can open any course for details or narrow the results by level, duration or language.",
+  "final_tabs": "* id 0 — \"Coursera | Online Courses From Top Universities. Join for Free\" https://www.coursera.org/search?query=Psychology"
+}

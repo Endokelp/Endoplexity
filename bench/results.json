@@ -1,0 +1,135 @@
+{
+  "generated": "2026-11-09T05:17:01.851Z",
+  "results": {
+    "cic-claude": {
+      "model": "cic:claude-sonnet-5-5",
+      "runs": 30,
+      "judged": 30,
+      "success": 25,
+      "easy": "8/10",
+      "medium": "8/10",
+      "hard": "9/10",
+      "median_wall_s": 76.8545,
+      "median_actions": 14,
+      "median_tokens": 298007,
+      "median_fresh_tokens": 28823,
+      "median_cost_usd": 0.3328557,
+      "total_cost_usd": 11.752935800000001,
+      "screenshots_to_model": 287,
+      "timeouts": 0,
+      "errors": 0
+    },
+    "claude-act": {
+      "model": "claude-sonnet-5-5",
+      "runs": 30,
+      "judged": 30,
+      "success": 21,
+      "easy": "7/10",
+      "medium": "7/10",
+      "hard": "7/10",
+      "median_wall_s": 33.094,
+      "median_actions": 10,
+      "median_tokens": 320980.5,
+      "median_fresh_tokens": 30679,
+      "median_cost_usd": 0.32310530000000004,
+      "total_cost_usd": 14.152050199999998,
+      "screenshots_to_model": 0,
+      "timeouts": 0,
+      "errors": 0
+    },
+    "claude-off": {
+      "model": "claude-sonnet-5-5",
+      "runs": 30,
+      "judged": 30,
+      "success": 22,
+      "easy": "9/10",
+      "medium": "6/10",
+      "hard": "7/10",
+      "median_wall_s": 44.316500000000005,
+      "median_actions": 12,
+      "median_tokens": 330020,
+      "median_fresh_tokens": 34586.5,
+      "median_cost_usd": 0.39899650000000003,
+      "total_cost_usd": 14.353353000000004,
+      "screenshots_to_model": 0,
+      "timeouts": 0,
+      "errors": 0
+    },
+    "codex-off": {
+      "model": "gpt-6.1-sol",
+      "runs": 30,
+      "judged": 30,
+      "success": 24,
+      "easy": "9/10",
+      "medium": "8/10",
+      "hard": "7/10",
+      "median_wall_s": 39.6255,
+      "median_actions": 13,
+      "median_tokens": 309771,
+      "median_fresh_tokens": 43465.5,
+      "median_cost_usd": null,
+      "total_cost_usd": null,
+      "screenshots_to_model": 0,
+      "timeouts": 0,
+      "errors": 0
+    },
+    "cursor-off": {
+      "model": "grok-4.7-medium",
+      "runs": 18,
+      "judged": 18,
+      "success": 13,
+      "easy": "3/5",
+      "medium": "7/9",
+      "hard": "3/4",
+      "median_wall_s": 113.57849999999999,
+      "median_actions": 18,
+      "median_tokens": 751617,
+      "median_fresh_tokens": 61079,
+      "median_cost_usd": null,
+      "total_cost_usd": null,
+      "screenshots_to_model": 0,
+      "timeouts": 0,
+      "errors": 0
+    }
+  },
+  "paired": {
+    "a": "claude-off",
+    "b": "cic-claude",
+    "tasks": 20,
+    "wall_x": 2.80104367433256,
+    "tokens_x": 1.3967379900617476,
+    "fresh_tokens_x": 1.2283567017842465,
+    "cost_x": 1.3212710522650957,
+    "actions_x": 1.90625,
+    "medians": {
+      "wall_s": [
+        31.0815,
+        57.463
+      ],
+      "tokens": [
+        238776.5,
+        282987
+      ],
+      "fresh_tokens": [
+        23031.5,
+        25030
+      ],
+      "cost_usd": [
+        0.23123699999999997,
+        0.28810080000000005
+      ],
+      "actions": [
+        7.5,
+        11.5
+      ]
+    }
+  },
+  "upstream_human_labels_same_30": {
+    "Operator": 17,
+    "Agent-E": 9,
+    "Browser_Use": 8,
+    "Claude_Computer_Use_3.5": 10,
+    "Claude_Computer_Use_3.7": 21,
+    "SeeAct": 11
+  }
+}

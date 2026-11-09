@@ -1,0 +1,24 @@
+{
+  "model": "claude-sonnet-5-5",
+  "start": "https://www.ycombinator.com/",
+  "start_error": null,
+  "wall": 11836,
+  "timedOut": false,
+  "error": null,
+  "num_turns": 4,
+  "tool_turns": 3,
+  "tool_calls": 3,
+  "input_tokens": 10,
+  "cache_read": 62893,
+  "cache_write": 10419,
+  "output_tokens": 918,
+  "cost_usd": 0.1153706,
+  "screenshots": 0,
+  "sequence": [
+    "ToolSearch",
+    "mcp__endo__navigate",
+    "mcp__endo__snapshot"
+  ],
+  "answer": "I found 6 YC companies from the 2022 and 2023 batches that are headquartered in France and currently have job openings. I used the YC Startup Directory filtered to Winter and Summer 2022, Winter and Summer 2023, HQ Region France, and \"Is Hiring\". All six are in Paris.\n\n| Company | Batch | What they do |\n|---|---|---|\n| Osium AI | Summer 2023 | Speeds up materials innovation with AI |\n| Rimward | Summer 2023 | Solar farm security software for existing cameras |\n| Twenty | Summer 2023 | Open-source CRM |\n| HyLight | Summer 2023 | Unmanned airships for inspecting critical assets |\n| Escape | Winter 2023 | Offensive security for teams that are outnumbered |\n| Windmill | Summer 2022 | Open-source platform that turns scripts into internal apps and workflows |\n\nYC's own note says this list leaves out companies that were founded in France or by French founders but are headquartered elsewhere. I didn't open the individual job listings, so I haven't checked which roles are open.",
+  "final_tabs": "* id 914606267 — \"The YC Startup Directory | Y Combinator\" https://www.ycombinator.com/companies?batch=Winter%202022&batch=Summer%202022&batch=Winter%202023&batch=Summer%202023&isHiring=true&regions=France"
+}
