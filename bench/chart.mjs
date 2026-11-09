@@ -29,6 +29,8 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
 function svg(t) {
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" role="img" aria-label="Endoplexity against Claude in Chrome on 30 Online-Mind2Web tasks, same CLI and model">`];
+  // Bars grow from the baseline once, then the values fade in; still for reduced motion.
+  out.push(`<style>.bar{transform-box:fill-box;transform-origin:0 50%;animation:grow .9s cubic-bezier(.2,.8,.2,1) both}.val{animation:fade .4s ease-out both}@keyframes grow{from{transform:scaleX(0)}}@keyframes fade{from{opacity:0}}@media (prefers-reduced-motion:reduce){.bar,.val{animation:none}}</style>`);
   out.push(`<rect width="${W}" height="${H}" fill="${t.bg}"/>`);
   rows.forEach(([name], i) => {
     const y = TOP + i * ROW + BAR / 2 + 4;
@@ -50,8 +52,9 @@ function svg(t) {
       }
       const w = Math.max(2, (v / max) * span);
       // Square at the baseline, 4 px round at the data end.
-      out.push(`<path d="M${x0} ${y}h${w - 4}a4 4 0 0 1 4 4v${BAR - 8}a4 4 0 0 1 -4 4h${-(w - 4)}z" fill="${t.series[i]}"/>`);
-      out.push(`<text x="${x0 + w + 6}" y="${y + 11}" font-size="12" font-weight="600" fill="${t.ink}">${esc(fmt(v))}</text>`);
+      const delay = (p * 0.15 + i * 0.08).toFixed(2);
+      out.push(`<path class="bar" style="animation-delay:${delay}s" d="M${x0} ${y}h${w - 4}a4 4 0 0 1 4 4v${BAR - 8}a4 4 0 0 1 -4 4h${-(w - 4)}z" fill="${t.series[i]}"/>`);
+      out.push(`<text class="val" style="animation-delay:${(+delay + 0.7).toFixed(2)}s" x="${x0 + w + 6}" y="${y + 11}" font-size="12" font-weight="600" fill="${t.ink}">${esc(fmt(v))}</text>`);
     });
   });
   out.push("</svg>");

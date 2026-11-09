@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="190" viewBox="0 0 880 190" role="img" aria-label="How Endoplexity works: the Chrome side panel talks to a local bridge over an origin-pinned WebSocket; the bridge serves browser tools over token-gated MCP to the claude, cursor-agent or codex CLI, which runs the agent loop.">
+  <style>
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+    .right { animation: right 2.4s linear infinite; }
+    .left { animation: left 2.4s linear infinite; animation-delay: 1.2s; }
+    .late { animation-delay: .6s; }
+    .late.left { animation-delay: 1.8s; }
+    @keyframes right { 0% { transform: translateX(0); opacity: 0; } 10%, 90% { opacity: 1; } 100% { transform: translateX(52px); opacity: 0; } }
+    @keyframes left { 0% { transform: translateX(0); opacity: 0; } 10%, 90% { opacity: 1; } 100% { transform: translateX(-52px); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .right, .left { animation: none; opacity: 0; } }
+  </style>
+  <rect width="880" height="190" rx="16" fill="#0d1117"/>
+  <rect x=".5" y=".5" width="879" height="189" rx="15.5" fill="none" stroke="#30363d"/>
+
+  <g class="sans">
+    <rect x="32" y="40" width="232" height="92" rx="12" fill="#161b22" stroke="#30363d"/>
+    <text x="52" y="76" font-size="16" font-weight="600" fill="#f0f6fc">Chrome side panel</text>
+    <text x="52" y="100" font-size="13" fill="#9198a1">your browser, your logins</text>
+    <text x="52" y="119" font-size="13" fill="#9198a1">owns the debugger</text>
+
+    <rect x="324" y="40" width="232" height="92" rx="12" fill="#161b22" stroke="#3fb950" stroke-opacity=".6"/>
+    <text x="344" y="76" font-size="16" font-weight="600" fill="#f0f6fc">Local bridge</text>
+    <text x="344" y="100" font-size="13" fill="#9198a1">127.0.0.1, 18 browser tools</text>
+    <text x="344" y="119" font-size="13" fill="#3fb950">the safety gate lives here</text>
+
+    <rect x="616" y="40" width="232" height="92" rx="12" fill="#161b22" stroke="#30363d"/>
+    <text x="636" y="76" font-size="16" font-weight="600" fill="#f0f6fc">Your CLI</text>
+    <text x="636" y="100" class="mono" font-size="12" fill="#9198a1">claude · cursor-agent</text>
+    <text x="636" y="119" class="mono" font-size="12" fill="#9198a1">codex  (the agent loop)</text>
+
+    <text x="294" y="160" font-size="12" fill="#9198a1" text-anchor="middle">WebSocket, origin-pinned</text>
+    <text x="586" y="160" font-size="12" fill="#9198a1" text-anchor="middle">MCP, token-gated</text>
+  </g>
+
+  <line x1="268" y1="86" x2="320" y2="86" stroke="#30363d" stroke-width="2"/>
+  <line x1="560" y1="86" x2="612" y2="86" stroke="#30363d" stroke-width="2"/>
+  <g>
+    <circle cx="268" cy="80" r="3.5" fill="#3fb950" class="right"/>
+    <circle cx="320" cy="92" r="3.5" fill="#9085e9" class="left"/>
+  </g>
+  <g>
+    <circle cx="560" cy="80" r="3.5" fill="#3fb950" class="right late"/>
+    <circle cx="612" cy="92" r="3.5" fill="#9085e9" class="left late"/>
+  </g>
+</svg>

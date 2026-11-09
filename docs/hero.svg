@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="280" viewBox="0 0 880 280" role="img" aria-label="Endoplexity: the browser agent you already pay for. A side panel types a task, opens three tabs, reads the pages as text and returns a table, with no screenshots sent to the model.">
+  <style>
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+    .typing { animation: type 9s steps(34, end) infinite; transform-box: fill-box; }
+    .step { opacity: 0; animation-duration: 9s; animation-iteration-count: infinite; }
+    .d1 { animation-name: step1; } .d2 { animation-name: step2; } .d3 { animation-name: step3; } .d4 { animation-name: step4; }
+    .caret { animation: blink 1s steps(1) infinite; }
+    .pulse { animation: pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    @keyframes type { 0% { transform: translateX(0); } 30%, 100% { transform: translateX(259px); } }
+    @keyframes step1 { 0%, 36% { opacity: 0; transform: translateY(4px); } 40%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+    @keyframes step2 { 0%, 48% { opacity: 0; transform: translateY(4px); } 52%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+    @keyframes step3 { 0%, 60% { opacity: 0; transform: translateY(4px); } 64%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+    @keyframes step4 { 0%, 72% { opacity: 0; transform: translateY(4px); } 76%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+    @keyframes blink { 50% { opacity: 0; } }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.6); opacity: .35; } }
+    @media (prefers-reduced-motion: reduce) {
+      .typing, .caret, .pulse { animation: none; }
+      .typing { transform: translateX(259px); }
+      .step { animation: none; opacity: 1; }
+    }
+  </style>
+  <defs>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f6f4a" stop-opacity=".35"/>
+      <stop offset=".6" stop-color="#0d1117" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="bubble"><rect x="508" y="84" width="304" height="34" rx="8"/></clipPath>
+  </defs>
+
+  <rect width="880" height="280" rx="16" fill="#0d1117"/>
+  <rect width="880" height="280" rx="16" fill="url(#glow)"/>
+  <rect x=".5" y=".5" width="879" height="279" rx="15.5" fill="none" stroke="#30363d"/>
+
+  <!-- Left: the pitch -->
+  <text x="44" y="62" class="sans" font-size="12" font-weight="700" letter-spacing="2.4" fill="#3fb950">ENDOPLEXITY</text>
+  <text x="44" y="108" class="sans" font-size="34" font-weight="700" fill="#f0f6fc">The browser agent</text>
+  <text x="44" y="148" class="sans" font-size="34" font-weight="700" fill="#f0f6fc">you already pay for.</text>
+  <text class="sans" font-size="15" fill="#9198a1">
+    <tspan x="44" y="188">Drives the Chrome you already use, through</tspan>
+    <tspan x="44" y="210">Claude, Cursor or Codex. No API key, no</tspan>
+    <tspan x="44" y="232">screenshots, no new browser to move into.</tspan>
+  </text>
+
+  <!-- Right: the panel -->
+  <rect x="488" y="34" width="348" height="212" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="508" y="62" class="sans" font-size="13" font-weight="600" fill="#f0f6fc">Endoplexity</text>
+  <circle cx="738" cy="58" r="4" fill="#3fb950" class="pulse"/>
+  <circle cx="738" cy="58" r="4" fill="#3fb950"/>
+  <text x="748" y="62" class="sans" font-size="12" fill="#9198a1">connected</text>
+
+  <rect x="508" y="84" width="304" height="34" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <text x="520" y="106" class="mono" font-size="13" fill="#e6edf3">compare the free tiers of 3 hosts</text>
+  <g clip-path="url(#bubble)">
+    <g class="typing">
+      <rect x="518" y="88" width="300" height="26" fill="#0d1117"/>
+      <rect x="518" y="93" width="2" height="16" fill="#3fb950" class="caret"/>
+    </g>
+  </g>
+
+  <g class="sans" font-size="13">
+    <g class="step d1"><text x="512" y="146" fill="#3fb950">✓</text><text x="532" y="146" fill="#e6edf3">opened 3 tabs, in your own Chrome</text></g>
+    <g class="step d2"><text x="512" y="170" fill="#3fb950">✓</text><text x="532" y="170" fill="#e6edf3">read 3 pricing pages, as text</text></g>
+    <g class="step d3"><text x="512" y="194" fill="#3fb950">✓</text><text x="532" y="194" fill="#e6edf3">comparison table ready</text></g>
+    <g class="step d4">
+      <line x1="508" y1="212" x2="816" y2="212" stroke="#30363d"/>
+      <text x="508" y="232" fill="#9198a1">0 screenshots sent  ·  $0 on top of your plan</text>
+    </g>
+  </g>
+</svg>
