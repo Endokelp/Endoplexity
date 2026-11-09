@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Endoplexity",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw33638oflCOZX7WGof7sJwsxGFyUodj53N3PqEWxCe0yi2WsLVYltw5Am5HrDlnQIFBr0E5EV7zosI+MDPkxloYgTk8dv3YZJ1qHUOaAylqjnFMAIj6kjCxNyUwxTlT16/CGT/T7vUjKGmWyCDsyOpsZntNcXbS0ndQSwmzdgfE52yZOqBl/IsGKUxPxLsFMQmw1Ak0NfYTkpX4encpAoFlhtnfRR/a6yQ9o2WAZ9FTGTkxcswu2r+F5jmouqeSFJPXOfwBanfhJOvSVtW5UpA2Gyb1jUTHULSZZNIdV+cIqssJyKsLGQWr9J2X0lR/GGdWVZx/49ywHjfVeBWuXoQIDAQAB",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "description": "Agentic browser control driven by your own Claude / Cursor subscriptions",
   "permissions": ["sidePanel", "debugger", "tabs", "tabGroups", "storage"],
   "host_permissions": ["http://*/*", "https://*/*", "file:///*"],
